@@ -1,0 +1,52 @@
+[
+  {
+    "employee_id": "EMP001",
+    "name": "Jordan Ashworth",
+    "email": "jordan.ashworth@example-corp.test",
+    "role": "Software Engineer II",
+    "employment_type": "full_time",
+    "manager_id": "EMP010",
+    "office_location": "Copenhagen",
+    "hire_date": "2023-03-14"
+  },
+  {
+    "employee_id": "EMP002",
+    "name": "Priya Nandakumar",
+    "email": "priya.nandakumar@example-corp.test",
+    "role": "HR Business Partner",
+    "employment_type": "full_time",
+    "manager_id": "EMP011",
+    "office_location": "London",
+    "hire_date": "2021-06-01"
+  },
+  {
+    "employee_id": "EMP003",
+    "name": "Tomasz Wiśniewski",
+    "email": "tomasz.wisniewski@example-corp.test",
+    "role": "Contract Data Analyst",
+    "employment_type": "contractor",
+    "manager_id": "EMP010",
+    "office_location": "Remote-EU",
+    "hire_date": "2024-11-04"
+  },
+  {
+    "employee_id": "EMP010",
+    "name": "Morgan Talbot",
+    "email": "morgan.talbot@example-corp.test",
+    "role": "Engineering Manager",
+    "employment_type": "full_time",
+    "manager_id": "EMP020",
+    "office_location": "Copenhagen",
+    "hire_date": "2019-01-10"
+  },
+  {
+    "employee_id": "EMP011",
+    "name": "Aisha Bello",
+    "email": "aisha.bello@example-corp.test",
+    "role": "Head of HR",
+    "employment_type": "full_time",
+    "manager_id": "EMP020",
+    "office_location": "London",
+    "hire_date": "2018-09-01"
+  }
+]

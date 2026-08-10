@@ -1,0 +1,31 @@
+[
+  {
+    "employee_id": "EMP001",
+    "pto_days_total": 25,
+    "pto_days_used": 9,
+    "pto_days_remaining": 16,
+    "pending_requests": []
+  },
+  {
+    "employee_id": "EMP002",
+    "pto_days_total": 27,
+    "pto_days_used": 20,
+    "pto_days_remaining": 7,
+    "pending_requests": []
+  },
+  {
+    "employee_id": "EMP003",
+    "pto_days_total": 0,
+    "pto_days_used": 0,
+    "pto_days_remaining": 0,
+    "pending_requests": [],
+    "note": "Contractors are not eligible for company PTO accrual per policy."
+  },
+  {
+    "employee_id": "EMP010",
+    "pto_days_total": 28,
+    "pto_days_used": 5,
+    "pto_days_remaining": 23,
+    "pending_requests": []
+  }
+]

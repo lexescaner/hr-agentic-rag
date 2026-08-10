@@ -1,0 +1,22 @@
+# Agent / orchestration (pattern from real-estate-agent)
+langgraph
+langchain
+langchain-mcp-adapters
+langchain-openai
+mcp
+
+# RAG (pattern from PraxaNew)
+chromadb
+sentence-transformers
+tiktoken
+pypdf
+beautifulsoup4
+markdown
+
+# Web app
+flask
+python-dotenv
+
+# Testing / eval
+pytest
+requests

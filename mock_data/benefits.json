@@ -1,0 +1,35 @@
+[
+  {
+    "employee_id": "EMP001",
+    "health_plan": "Standard PPO",
+    "dental": true,
+    "vision": true,
+    "retirement_contribution_pct": 5,
+    "benefits_eligible": true
+  },
+  {
+    "employee_id": "EMP002",
+    "health_plan": "Premium PPO",
+    "dental": true,
+    "vision": false,
+    "retirement_contribution_pct": 8,
+    "benefits_eligible": true
+  },
+  {
+    "employee_id": "EMP003",
+    "health_plan": null,
+    "dental": false,
+    "vision": false,
+    "retirement_contribution_pct": 0,
+    "benefits_eligible": false,
+    "note": "Contractors are not eligible for employer-sponsored benefits."
+  },
+  {
+    "employee_id": "EMP010",
+    "health_plan": "Premium PPO",
+    "dental": true,
+    "vision": true,
+    "retirement_contribution_pct": 8,
+    "benefits_eligible": true
+  }
+]

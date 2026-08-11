@@ -10,7 +10,7 @@ logging, and confirmation-gating for irreversible actions.
 
 import os
 from dotenv import load_dotenv
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent as create_react_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from rag.answer import get_model
@@ -48,7 +48,7 @@ async def build_agent():
     tools = await client.get_tools()
 
     model = get_model()
-    agent = create_react_agent(model, tools, prompt=AGENT_SYSTEM_PROMPT)
+    agent = create_react_agent(model, tools, system_prompt=AGENT_SYSTEM_PROMPT)
     return agent
 
 

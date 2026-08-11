@@ -59,7 +59,8 @@ if __name__ == "__main__":
         agent = await build_agent()
         # Placeholder smoke test — confirms agent + both MCP servers connect
         result = await agent.ainvoke(
-            {"messages": [{"role": "user", "content": "How many PTO days does employee EMP001 have left?"}]}
+            # {"messages": [{"role": "user", "content": "How many PTO days does employee EMP001 have left?"}]}
+            {"messages": [{"role": "user", "content": "I'm employee EMP001. Can I take 3 days of PTO next week? What do I need to know?"}]}
         )
         print(result["messages"][-1].content)
 

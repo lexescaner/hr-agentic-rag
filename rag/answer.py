@@ -61,6 +61,8 @@ def get_model(model_name: Optional[str] = None) -> ChatModel:
         model_name=model_name,
         max_tokens=512,
         temperature=0.2,  # low temperature: grounded, factual answers, not creative ones
+        timeout=30,       # give the free model more time
+        max_retries=2,    # auto-retry on transient errors like this 504
     )
 
 

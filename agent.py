@@ -92,9 +92,13 @@ if __name__ == "__main__":
         # Should trigger create_mock_hr_ticket, hit confirmed=False, and the
         # agent should STOP and relay the confirmation_required response to
         # the user rather than silently retrying with confirmed=True.
+        # question = (
+        #     "I'm employee EMP001. Please create an HR ticket to ask about "
+        #     "my remote work options."
+        # )
         question = (
-            "I'm employee EMP001. Please create an HR ticket to ask about "
-            "my remote work options."
+            "I'm employee EMP003, currently based in Remote-EU. Can I work from a "
+            "country outside the EU for 6 weeks? What do I need to know?"
         )
 
         result = await invoke_with_retry(

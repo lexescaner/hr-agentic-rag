@@ -1,0 +1,26 @@
+# Render deployment config (Infrastructure as Code).
+# Render can auto-detect this file when the repo is connected via
+# "New +" -> "Blueprint" and set up the service automatically, or you can
+# configure the same settings manually in the Render dashboard when
+# connecting the repo as a plain Web Service — both approaches produce the
+# same running service; this file just documents the exact configuration
+# used, so it doesn't have to be reconstructed from memory later.
+
+services:
+  - type: web
+    name: hr-agentic-rag
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: |
+      pip install -r requirements.txt
+      python rag/policy_rag.py --build
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+    healthCheckPath: /health
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false   # set manually in Render dashboard — never committed
+      - key: LLM_MODEL
+        value: google/gemma-4-26b-a4b-it:free
+      - key: PYTHON_VERSION
+        value: 3.13.2

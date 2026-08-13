@@ -8,9 +8,12 @@ build_trace) behind two HTTP endpoints:
                      structured tool-call trace (rubric: "returns the final
                      answer, citations, snippets, and a concise tool-call trace")
 
-The agent is built once at startup (not per-request) since spinning up both
-MCP server subprocesses on every request would be slow and wasteful — this
-also means /health can report whether that startup actually succeeded.
+The agent is built once at MODULE IMPORT time (not inside `if __name__ ==
+"__main__"`), so it works identically whether the app is run directly
+(`python app.py`, local dev) or imported by a production WSGI server
+(`gunicorn app:app`, used on Render) — gunicorn never executes the
+`__main__` block, so agent construction has to happen at import time to run
+in both cases.
 """
 
 import os
@@ -26,8 +29,6 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Populated once at startup by _init_agent(). None until then, and set back
-# to None (with an error recorded) if startup fails — /health reflects this.
 _agent = None
 _startup_error = None
 
@@ -36,8 +37,8 @@ def _run_async(coro):
     """
     Flask routes are sync; agent.py's functions are async (MCP client +
     LangGraph are async-native). This runs a coroutine to completion inside
-    a sync route. Simple approach, adequate for the free-tier / demo scale
-    this app targets — a production app would likely use an async framework
+    a sync context. Adequate for this project's free-tier / demo scale — a
+    production app at higher traffic would likely use an async framework
     (e.g. Quart/FastAPI) instead to avoid blocking the request thread.
     """
     loop = asyncio.new_event_loop()
@@ -48,16 +49,25 @@ def _run_async(coro):
 
 
 def _init_agent():
-    """Build the agent once at process startup. Sets module-level _agent."""
+    """Build the agent once. Sets module-level _agent / _startup_error."""
     global _agent, _startup_error
     try:
         _agent = _run_async(build_agent())
         _startup_error = None
+        print("[startup] Agent ready.")
     except Exception as e:
         _agent = None
         _startup_error = str(e)
         print(f"[startup] Failed to build agent: {e}")
         traceback.print_exc()
+
+
+# --- Module-level initialization ---
+# Runs once when this module is imported, whether that happens via
+# `python app.py` or via a WSGI server importing `app:app`. This is what
+# makes the app work correctly under gunicorn on Render, not just locally.
+print("Initializing agent (connecting to MCP servers)...")
+_init_agent()
 
 
 @app.route("/health", methods=["GET"])
@@ -107,9 +117,6 @@ def chat():
     trace = build_trace(result)
     final_answer = result["messages"][-1].content
 
-    # Surface retrieved policy citations separately for convenience, in
-    # addition to the raw trace — pulled from any search_policy_documents /
-    # check_policy_compliance step's output.
     citations = []
     for step in trace:
         output = step.get("output")
@@ -131,12 +138,10 @@ def chat():
 
 
 if __name__ == "__main__":
-    print("Initializing agent (connecting to MCP servers)...")
-    _init_agent()
+    # Local dev entry point. Agent is already initialized above at import
+    # time, so this just starts the dev server.
     if _agent is None:
         print("WARNING: agent failed to initialize — /chat will return 503 until fixed.")
-    else:
-        print("Agent ready.")
 
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)

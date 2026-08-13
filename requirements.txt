@@ -20,3 +20,4 @@ python-dotenv
 # Testing / eval
 pytest
 requests
+gunicorn

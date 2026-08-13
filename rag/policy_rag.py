@@ -7,7 +7,10 @@ Handles:
     structured that way — this is the "justified chunking strategy" the
     rubric asks for: it keeps each chunk semantically coherent as a single
     policy sub-topic, rather than splitting mid-thought at a fixed token count)
-  - Embedding chunks with a local sentence-transformers model (free, no API key)
+  - Embedding chunks with Chroma's built-in lightweight ONNX embedding
+    function (same all-MiniLM-L6-v2 model, via onnxruntime — NOT
+    sentence-transformers/torch, which was swapped out after it caused the
+    deployed app to exceed Render free tier's 512MB memory limit)
   - Storing embeddings + metadata in a persistent local Chroma collection
   - Top-k retrieval for a given query, with citation metadata attached
 
@@ -30,9 +33,14 @@ DOCS_DIR = os.path.join(os.path.dirname(__file__), "..", "docs")
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "..", "chroma_db")
 COLLECTION_NAME = "hr_policy_corpus"
 
-# Local, free embedding model — no API key required, runs on CPU fine for a
-# corpus this size (30-120 pages).
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+# NOTE on embedding model: originally used SentenceTransformerEmbeddingFunction
+# (sentence-transformers + torch), which reliably exceeded Render free tier's
+# 512MB memory limit once the app + two MCP server subprocesses were all
+# running. Switched to Chroma's built-in ONNXMiniLM_L6_V2 function, which
+# wraps the same all-MiniLM-L6-v2 model via onnxruntime instead of PyTorch —
+# same embedding quality/dimensionality, far smaller runtime memory
+# footprint. No EMBEDDING_MODEL_NAME parameter needed; this function is
+# fixed to that one model by design.
 
 
 def _doc_id_from_filename(filename: str) -> str:
@@ -53,9 +61,6 @@ def _parse_markdown(text: str) -> list[dict]:
     Returns list of {section, text} dicts. Falls back to whole-doc if no
     '##' headers are found.
     """
-    # Split on lines starting with "## " (level-2 headings), keeping the
-    # heading text as the section label. Level-1 "# Title" is treated as
-    # the document title, not a chunk boundary.
     lines = text.splitlines()
     sections = []
     current_section = "Overview"
@@ -63,7 +68,6 @@ def _parse_markdown(text: str) -> list[dict]:
 
     for line in lines:
         if line.startswith("# ") and not line.startswith("## "):
-            # Document title line — skip, not a chunk boundary
             continue
         if line.startswith("## "):
             if current_lines:
@@ -93,7 +97,7 @@ def _parse_html(text: str) -> list[dict]:
 
     for el in body.find_all(["h1", "h2", "p"]):
         if el.name == "h1":
-            continue  # document title, not a chunk boundary
+            continue
         if el.name == "h2":
             if current_parts:
                 sections.append((current_section, "\n".join(current_parts).strip()))
@@ -147,6 +151,15 @@ def load_and_chunk_corpus() -> list[dict]:
     return chunks
 
 
+def _get_embedding_function():
+    """
+    Chroma's built-in lightweight embedding function: wraps all-MiniLM-L6-v2
+    via onnxruntime, not sentence-transformers/torch. Chosen specifically to
+    stay within Render free tier's 512MB memory limit.
+    """
+    return embedding_functions.ONNXMiniLM_L6_V2()
+
+
 def build_index() -> chromadb.Collection:
     """
     Rebuilds the Chroma index from scratch from the current docs/ corpus.
@@ -155,15 +168,12 @@ def build_index() -> chromadb.Collection:
     """
     client = chromadb.PersistentClient(path=CHROMA_DIR)
 
-    # Drop any existing collection so re-running this doesn't duplicate chunks
     try:
         client.delete_collection(COLLECTION_NAME)
     except Exception:
         pass
 
-    embed_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=EMBEDDING_MODEL_NAME
-    )
+    embed_fn = _get_embedding_function()
     collection = client.create_collection(
         name=COLLECTION_NAME,
         embedding_function=embed_fn,
@@ -193,9 +203,7 @@ def build_index() -> chromadb.Collection:
 def get_collection() -> chromadb.Collection:
     """Get the existing collection, building it first if it doesn't exist yet."""
     client = chromadb.PersistentClient(path=CHROMA_DIR)
-    embed_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=EMBEDDING_MODEL_NAME
-    )
+    embed_fn = _get_embedding_function()
     try:
         return client.get_collection(name=COLLECTION_NAME, embedding_function=embed_fn)
     except Exception:
@@ -219,7 +227,6 @@ def search(query: str, top_k: int = 4) -> list[dict]:
             "doc_title": results["metadatas"][0][i]["doc_title"],
             "section": results["metadatas"][0][i]["section"],
             "source_format": results["metadatas"][0][i]["source_format"],
-            # Chroma returns distance (lower = more similar); expose both
             "distance": results["distances"][0][i],
         })
     return hits

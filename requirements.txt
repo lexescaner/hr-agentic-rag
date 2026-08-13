@@ -7,7 +7,6 @@ mcp
 
 # RAG (pattern from PraxaNew)
 chromadb
-sentence-transformers
 tiktoken
 pypdf
 beautifulsoup4

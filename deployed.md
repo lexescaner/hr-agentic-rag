@@ -52,9 +52,11 @@ same embedding quality and dimensionality, substantially smaller runtime memory 
 `requirements.txt` entirely, since nothing else in the stack required it.
 
 Notably, this same `sentence-transformers`/PyTorch pattern was also used in a prior project
-(PraxaNew), so this wasn't a one-off mistake specific to this codebase — it's a real, recurring
-memory/deployment tradeoff worth flagging for future free-tier deployments: `sentence-transformers`
-is a reasonable default for local development, but a poor fit for memory-constrained hosts.
+(PraxaNew), though that project was run locally rather than deployed to a memory-constrained host,
+so it's untested there. Still, this suggests the underlying tradeoff isn't specific to this
+codebase — `sentence-transformers` is a reasonable default for local development, but worth
+reconsidering for any future free-tier deployment, based on the concrete memory failure observed
+here.
 
 After the fix, the deploy succeeded cleanly on the first retry, with the agent initializing
 correctly and both `/health` and `/chat` verified working against the live public URL.

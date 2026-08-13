@@ -3,9 +3,12 @@ Agent orchestrator — single LangGraph agent that discovers and calls tools
 from both MCP servers (policy_mcp_server.py, hr_data_mcp_server.py).
 Pattern adapted from real-estate-agent's real_estate_agent.py.
 
-STATUS: core loop validated. Both required workflows verified end-to-end
-(PTO Request Guidance, Remote Work Eligibility). Confirmation gate verified.
-Operational trace logging implemented, including escalation detection.
+STATUS: both required workflows verified end-to-end. Confirmation gate
+verified. Operational trace logging implemented. System prompt strengthened
+(Day 5) after eval found the agent occasionally hallucinated an employee_id
+when calling employee-specific tools on questions that never mentioned one
+(e.g. "How many floating holidays do I get?" -> fabricated employee_id
+"EMP12345", which doesn't exist in mock data).
 """
 
 import os
@@ -36,13 +39,24 @@ AGENT_SYSTEM_PROMPT = """You are an HR assistant agent. You have access to tools
 policy documents and looking up employee/PTO/benefits data. Decide which tools are needed to answer
 each question — some questions need only policy search, others need employee data lookups too.
 
+IMPORTANT — employee-specific tools (lookup_employee_profile, check_pto_balance,
+lookup_benefits_status, create_mock_hr_ticket, draft_hr_email) all require a real employee_id.
+NEVER invent or guess an employee_id. Only call these tools when the user has explicitly provided
+their employee ID in the conversation. If a question is about general policy (e.g. "how many
+floating holidays do employees get") and no employee ID has been given, answer using
+search_policy_documents / check_policy_compliance alone — do not call an employee-specific tool
+with a fabricated ID. If the question genuinely requires employee-specific data and no ID was
+given, ask the user for their employee ID instead of guessing one.
+
 Always explain which tools you used and why in your final answer. Never take irreversible actions
 (like creating a ticket) without the user's explicit confirmation first. If a tool response has
 status "confirmation_required", stop and relay that request to the user — do not call the tool
 again with confirmed=True unless the user has explicitly said yes in this conversation."""
 
 # Explicit ceiling on agent loop iterations — a documented design decision rather
-# than relying on the framework's undocumented default.
+# than relying on the framework's undocumented default. Each tool call + LLM
+# response pair counts as ~1-2 steps, so 10 comfortably covers a 2-tool workflow
+# with room for a retry, while still bounding runaway loops.
 RECURSION_LIMIT = 10
 
 
@@ -61,11 +75,12 @@ async def build_agent():
 
 async def invoke_with_retry(agent, messages, max_attempts: int = 3, delay: float = 3.0):
     """
-    OpenRouter's free-tier models occasionally return a 504 packaged inside a
-    200 OK response body (application-level error, not an HTTP-level failure),
-    which the underlying OpenAI SDK's built-in retry logic does not catch.
-    This wrapper retries at the agent-invocation level to ride out that
-    transient flakiness instead of failing the whole run on one bad response.
+    OpenRouter's free-tier models occasionally return a 504/429 packaged
+    inside a 200 OK response body (application-level error, not an
+    HTTP-level failure), which the underlying OpenAI SDK's built-in retry
+    logic does not catch. This wrapper retries at the agent-invocation
+    level to ride out that transient flakiness instead of failing the
+    whole run on one bad response.
     """
     last_error = None
     for attempt in range(1, max_attempts + 1):
@@ -112,14 +127,10 @@ def build_trace(result: dict) -> list[dict]:
     exact arguments it passed, the exact (unwrapped) output that tool
     returned, and whether that step represents an escalation (e.g. a
     confirmation-required irreversible action).
-
-    This is the rubric-required "visible or logged trace of agent reasoning
-    steps" — architectural level (tool name, args, output, escalation),
-    not the model's hidden chain-of-thought.
     """
     trace = []
     step_num = 0
-    pending_calls = {}  # tool_call_id -> {"tool": name, "args": args}
+    pending_calls = {}
 
     for msg in result["messages"]:
         msg_type = msg.__class__.__name__
@@ -172,12 +183,6 @@ def print_trace(trace: list[dict], question: str, result: dict) -> None:
         output_str = json.dumps(step["output"], indent=2) if isinstance(step["output"], (dict, list)) else str(step["output"])
         print(f"  output: {output_str}")
 
-    # Determine why the loop actually ended. LangGraph's create_react_agent
-    # terminates when the final AIMessage has no tool_calls — i.e. the model
-    # decided it had everything it needed and produced a plain-text answer.
-    # This is the one place in this codebase that makes that termination
-    # condition explicit and visible, rather than leaving it as undocumented
-    # framework behavior.
     final_msg = result["messages"][-1]
     ended_naturally = final_msg.__class__.__name__ == "AIMessage" and not getattr(final_msg, "tool_calls", None)
     any_escalation = any(step["escalation"] for step in trace)
@@ -199,10 +204,12 @@ if __name__ == "__main__":
     async def main():
         agent = await build_agent()
 
-        question = (
-            "I'm employee EMP001. Can I take 3 days of PTO next week? "
-            "What do I need to know?"
-        )
+        # Regression test for the Day 5 fix: this question previously caused
+        # the agent to hallucinate employee_id "EMP12345" and call
+        # lookup_employee_profile unnecessarily. It should now answer from
+        # policy alone, since no employee ID was given and the question is
+        # general policy information.
+        question = "How many floating holidays do I get?"
 
         result = await invoke_with_retry(
             agent,

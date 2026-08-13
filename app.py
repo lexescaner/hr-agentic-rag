@@ -7,6 +7,8 @@ build_trace) behind two HTTP endpoints:
   - POST /chat    — accepts a question, returns the agent's answer plus a
                      structured tool-call trace (rubric: "returns the final
                      answer, citations, snippets, and a concise tool-call trace")
+  - GET  /        — minimal browser chat UI (self-contained HTML, no
+                     template files needed) that calls /chat via fetch()
 
 The agent is built once at MODULE IMPORT time (not inside `if __name__ ==
 "__main__"`), so it works identically whether the app is run directly
@@ -20,7 +22,7 @@ import os
 import asyncio
 import traceback
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from dotenv import load_dotenv
 
 from agent import build_agent, invoke_with_retry, build_trace
@@ -62,12 +64,79 @@ def _init_agent():
         traceback.print_exc()
 
 
-# --- Module-level initialization ---
-# Runs once when this module is imported, whether that happens via
-# `python app.py` or via a WSGI server importing `app:app`. This is what
-# makes the app work correctly under gunicorn on Render, not just locally.
 print("Initializing agent (connecting to MCP servers)...")
 _init_agent()
+
+
+_CHAT_UI_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HR Assistant</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; }
+  h1 { font-size: 20px; }
+  #question { width: 100%; padding: 10px; font-size: 15px; box-sizing: border-box; }
+  button { margin-top: 8px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
+  #answer { white-space: pre-wrap; margin-top: 20px; padding: 12px; background: #f4f4f4; border-radius: 6px; }
+  #trace { margin-top: 12px; font-size: 12px; color: #555; }
+  .status { font-size: 13px; color: #888; }
+</style>
+</head>
+<body>
+  <h1>HR Assistant</h1>
+  <p class="status">Ask about PTO, remote work, benefits, expenses, and other HR policies.</p>
+  <input type="text" id="question" placeholder="e.g. How many PTO days do I get?" />
+  <button onclick="ask()">Ask</button>
+  <div id="answer"></div>
+  <div id="trace"></div>
+
+<script>
+async function ask() {
+  const q = document.getElementById('question').value;
+  const answerDiv = document.getElementById('answer');
+  const traceDiv = document.getElementById('trace');
+  if (!q.trim()) return;
+
+  answerDiv.textContent = 'Thinking... (first request after inactivity can take up to a minute)';
+  traceDiv.textContent = '';
+
+  try {
+    const resp = await fetch('/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question: q})
+    });
+    const data = await resp.json();
+
+    if (data.error) {
+      answerDiv.textContent = 'Error: ' + data.error;
+      return;
+    }
+
+    answerDiv.textContent = data.answer;
+
+    if (data.trace && data.trace.length > 0) {
+      const toolNames = data.trace.map(s => s.tool).join(', ');
+      traceDiv.textContent = 'Tools called: ' + toolNames;
+    }
+  } catch (e) {
+    answerDiv.textContent = 'Request failed: ' + e;
+  }
+}
+
+document.getElementById('question').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') ask();
+});
+</script>
+</body>
+</html>"""
+
+
+@app.route("/", methods=["GET"])
+def chat_ui():
+    """Minimal browser chat UI. Calls the existing /chat API via fetch()."""
+    return Response(_CHAT_UI_HTML, mimetype="text/html")
 
 
 @app.route("/health", methods=["GET"])
@@ -138,8 +207,6 @@ def chat():
 
 
 if __name__ == "__main__":
-    # Local dev entry point. Agent is already initialized above at import
-    # time, so this just starts the dev server.
     if _agent is None:
         print("WARNING: agent failed to initialize — /chat will return 503 until fixed.")
 

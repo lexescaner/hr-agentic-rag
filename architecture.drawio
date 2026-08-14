@@ -1,0 +1,77 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Architecture" id="hr-agentic-rag-architecture">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- User -->
+        <mxCell id="user" value="User&#10;(browser or API client)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdf1f1;strokeColor=#c0392b;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="320" y="20" width="220" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Flask app -->
+        <mxCell id="flask" value="Flask app (app.py)&#10;/health   /chat   /  (chat UI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4fb;strokeColor=#2c5f8a;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="290" y="120" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Agent Orchestrator -->
+        <mxCell id="agent" value="Agent Orchestrator (agent.py)&#10;LangGraph ReAct agent, single loop&#10;- decides: RAG alone, or tool call(s) needed&#10;- employee_id guard wraps sensitive tools&#10;- operational trace logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8f8;strokeColor=#6c3d82;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="240" y="220" width="380" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Server: policy -->
+        <mxCell id="mcp_policy" value="MCP Server: policy&#10;(mcp/policy_mcp_server.py)&#10;- search_policy_documents&#10;- get_policy_section&#10;- check_policy_compliance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdf6e3;strokeColor=#a8801f;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="380" width="300" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Server: hr_data -->
+        <mxCell id="mcp_hr" value="MCP Server: hr_data&#10;(mcp/hr_data_mcp_server.py)&#10;- lookup_employee_profile&#10;- check_pto_balance&#10;- lookup_benefits_status&#10;- create_mock_hr_ticket&#10;- draft_hr_email" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eafaf1;strokeColor=#12876a;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="460" y="380" width="300" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- RAG index -->
+        <mxCell id="rag_index" value="RAG index (rag/policy_rag.py)&#10;Chroma + ONNX all-MiniLM-L6-v2&#10;built from docs/ (9 files, 48 chunks)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdf6e3;strokeColor=#a8801f;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="550" width="300" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- mock_data -->
+        <mxCell id="mock_data" value="mock_data/*.json&#10;(employees, PTO, benefits, tickets)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eafaf1;strokeColor=#12876a;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="460" y="550" width="300" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- LLM -->
+        <mxCell id="llm" value="LLM (rag/answer.py: get_model())&#10;google/gemma-4-26b-a4b-it:free via OpenRouter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f0f9;strokeColor=#1a4d73;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="220" y="680" width="420" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#444;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="user" target="flask">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#444;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="flask" target="agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#444;strokeWidth=1.5;endArrow=block;exitX=0.25;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="agent" target="mcp_policy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#444;strokeWidth=1.5;endArrow=block;exitX=0.75;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="agent" target="mcp_hr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#444;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="mcp_policy" target="rag_index">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#444;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="mcp_hr" target="mock_data">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#888;strokeWidth=1.5;dashed=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.25;entryY=0;" edge="1" parent="1" source="rag_index" target="llm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#888;strokeWidth=1.5;dashed=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.75;entryY=0;" edge="1" parent="1" source="mock_data" target="llm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

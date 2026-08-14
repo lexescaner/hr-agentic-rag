@@ -7,15 +7,14 @@ STATUS: both required workflows verified end-to-end. Confirmation gate
 verified. Operational trace logging implemented.
 
 Day 5: eval found the agent occasionally hallucinated an employee_id when
-calling employee-specific tools on questions that never provided one (e.g.
-"How many floating holidays do I get?" -> fabricated employee_id
-"EMP12345"). A prompt-level fix (AGENT_SYSTEM_PROMPT instruction) reduced
-but did not reliably eliminate this — tested 1/3 success. This version adds
-a CODE-LEVEL guard: employee-specific tool calls are intercepted and
-blocked unless the employee_id actually appears in the user's own message,
-mirroring the hard-enforced pattern already used for create_mock_hr_ticket's
-confirmed=True check. Unlike the prompt-only fix, this cannot be bypassed by
-the model choosing not to follow an instruction.
+calling employee-specific tools on questions that never provided one. A
+code-level guard (below) fixed this reliably (6/6 clean across local+live
+testing, vs. 1/3 for an earlier prompt-only attempt). Testing that guard
+also surfaced a separate, milder issue: on 1/6 trials, the agent skipped
+answering the generally-answerable part of a question entirely and just
+asked for the employee ID upfront, instead of answering what it could and
+asking for the ID only for the personalized part. This version refines the
+system prompt to explicitly require answering the general part first.
 """
 
 import os
@@ -50,11 +49,15 @@ each question — some questions need only policy search, others need employee d
 IMPORTANT — employee-specific tools (lookup_employee_profile, check_pto_balance,
 lookup_benefits_status, create_mock_hr_ticket, draft_hr_email) all require a real employee_id.
 NEVER invent or guess an employee_id. Only call these tools when the user has explicitly provided
-their employee ID in the conversation. If a question is about general policy (e.g. "how many
-floating holidays do employees get") and no employee ID has been given, answer using
-search_policy_documents / check_policy_compliance alone — do not call an employee-specific tool
-with a fabricated ID. If the question genuinely requires employee-specific data and no ID was
-given, ask the user for their employee ID instead of guessing one.
+their employee ID in the conversation.
+
+If a question has a general-policy part that is answerable from search_policy_documents /
+check_policy_compliance alone (e.g. "how many floating holidays do employees get" — a flat number,
+not tied to any individual), you MUST answer that part fully using policy search, regardless of
+whether an employee ID was given. Do NOT skip straight to asking for an employee ID without first
+answering the part of the question you can already answer from policy. Only after answering the
+general part, if the question also implies a need for the user's personal data (e.g. "how many do
+I have left"), ask for their employee ID to look up the personalized part — do not guess one.
 
 Note: employee-specific tool calls are also validated in code — a call with an employee_id that
 was not actually provided by the user will be rejected automatically. If you see a rejection, ask
@@ -96,11 +99,6 @@ def _guard_employee_id_tool(tool):
     user's own message for this request. This is a hard, code-enforced
     guardrail — unlike a system-prompt instruction, the model cannot bypass
     it by simply not following the request.
-
-    On rejection, returns a structured error (not an exception) so the
-    agent's ReAct loop sees it as a normal tool result and can course-correct
-    (e.g. ask the user for their real ID) within the same turn, exactly like
-    it already does for create_mock_hr_ticket's confirmation_required case.
     """
     original_coroutine = tool.coroutine
 
@@ -287,10 +285,11 @@ if __name__ == "__main__":
     async def main():
         agent = await build_agent()
 
-        # Regression test 1: previously caused a hallucinated employee_id.
-        # Should now either answer from policy alone, or (if it still tries
-        # to guess an ID) get blocked by the code-level guard rather than
-        # silently succeeding with fabricated data.
+        # Regression test: this question has a general-policy part (2
+        # floating holidays/year, answerable from policy alone) with no
+        # employee ID given. Should answer the general part fully, and only
+        # then optionally ask for an ID if it wants to offer a personalized
+        # check — NOT skip straight to asking without answering anything.
         question = "How many floating holidays do I get?"
 
         result = await invoke_with_retry(

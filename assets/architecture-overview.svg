@@ -1,0 +1,79 @@
+<svg viewBox="0 0 900 780" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrowA" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#444" />
+    </marker>
+    <marker id="arrowDashed" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#888" />
+    </marker>
+  </defs>
+
+  <!-- User -->
+  <rect x="320" y="20" width="220" height="50" rx="8" fill="#fdf1f1" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="430" y="41" text-anchor="middle" font-size="12" font-weight="bold" fill="#c0392b">User</text>
+  <text x="430" y="57" text-anchor="middle" font-size="9" fill="#555">(browser or API client)</text>
+
+  <line x1="430" y1="70" x2="430" y2="118" stroke="#444" stroke-width="1.8" marker-end="url(#arrowA)"/>
+
+  <!-- Flask app -->
+  <rect x="290" y="120" width="280" height="55" rx="8" fill="#eef4fb" stroke="#2c5f8a" stroke-width="1.5"/>
+  <text x="430" y="143" text-anchor="middle" font-size="12" font-weight="bold" fill="#2c5f8a">Flask app (app.py)</text>
+  <text x="430" y="160" text-anchor="middle" font-size="9" fill="#555">/health   /chat   /  (chat UI)</text>
+
+  <line x1="430" y1="175" x2="430" y2="218" stroke="#444" stroke-width="1.8" marker-end="url(#arrowA)"/>
+
+  <!-- Agent Orchestrator -->
+  <rect x="240" y="220" width="380" height="105" rx="8" fill="#f3e8f8" stroke="#6c3d82" stroke-width="1.5"/>
+  <text x="430" y="240" text-anchor="middle" font-size="12" font-weight="bold" fill="#6c3d82">Agent Orchestrator (agent.py)</text>
+  <text x="255" y="258" font-size="9" fill="#555">LangGraph ReAct agent, single loop</text>
+  <text x="255" y="273" font-size="9" fill="#555">- decides: RAG alone, or tool call(s) needed</text>
+  <text x="255" y="288" font-size="9" fill="#555">- employee_id guard wraps sensitive tools</text>
+  <text x="255" y="303" font-size="9" fill="#555">- operational trace logging</text>
+
+  <line x1="340" y1="325" x2="230" y2="378" stroke="#444" stroke-width="1.8" marker-end="url(#arrowA)"/>
+  <line x1="520" y1="325" x2="630" y2="378" stroke="#444" stroke-width="1.8" marker-end="url(#arrowA)"/>
+
+  <!-- MCP Server: policy -->
+  <rect x="80" y="380" width="300" height="115" rx="8" fill="#fdf6e3" stroke="#a8801f" stroke-width="1.5"/>
+  <text x="95" y="400" font-size="12" font-weight="bold" fill="#a8801f">MCP Server: policy</text>
+  <text x="95" y="415" font-size="9" fill="#555">(mcp/policy_mcp_server.py)</text>
+  <text x="95" y="433" font-size="9" fill="#333">- search_policy_documents</text>
+  <text x="95" y="448" font-size="9" fill="#333">- get_policy_section</text>
+  <text x="95" y="463" font-size="9" fill="#333">- check_policy_compliance</text>
+
+  <!-- MCP Server: hr_data -->
+  <rect x="460" y="380" width="300" height="115" rx="8" fill="#eafaf1" stroke="#12876a" stroke-width="1.5"/>
+  <text x="475" y="400" font-size="12" font-weight="bold" fill="#12876a">MCP Server: hr_data</text>
+  <text x="475" y="415" font-size="9" fill="#555">(mcp/hr_data_mcp_server.py)</text>
+  <text x="475" y="433" font-size="9" fill="#333">- lookup_employee_profile</text>
+  <text x="475" y="448" font-size="9" fill="#333">- check_pto_balance</text>
+  <text x="475" y="463" font-size="9" fill="#333">- lookup_benefits_status</text>
+  <text x="475" y="478" font-size="9" fill="#333">- create_mock_hr_ticket, draft_hr_email</text>
+
+  <line x1="230" y1="495" x2="230" y2="548" stroke="#444" stroke-width="1.8" marker-end="url(#arrowA)"/>
+  <line x1="610" y1="495" x2="610" y2="548" stroke="#444" stroke-width="1.8" marker-end="url(#arrowA)"/>
+
+  <!-- RAG index -->
+  <rect x="80" y="550" width="300" height="65" rx="8" fill="#fdf6e3" stroke="#a8801f" stroke-width="1.5"/>
+  <text x="95" y="570" font-size="11" font-weight="bold" fill="#a8801f">RAG index (rag/policy_rag.py)</text>
+  <text x="95" y="586" font-size="9" fill="#333">Chroma + ONNX all-MiniLM-L6-v2</text>
+  <text x="95" y="601" font-size="9" fill="#333">built from docs/ (9 files, 48 chunks)</text>
+
+  <!-- mock_data -->
+  <rect x="460" y="550" width="300" height="65" rx="8" fill="#eafaf1" stroke="#12876a" stroke-width="1.5"/>
+  <text x="475" y="574" font-size="11" font-weight="bold" fill="#12876a">mock_data/*.json</text>
+  <text x="475" y="592" font-size="9" fill="#333">(employees, PTO, benefits, tickets)</text>
+
+  <!-- LLM -->
+  <rect x="220" y="700" width="420" height="60" rx="8" fill="#e8f0f9" stroke="#1a4d73" stroke-width="1.5"/>
+  <text x="430" y="723" text-anchor="middle" font-size="12" font-weight="bold" fill="#1a4d73">LLM (rag/answer.py: get_model())</text>
+  <text x="430" y="740" text-anchor="middle" font-size="9" fill="#555">google/gemma-4-26b-a4b-it:free via OpenRouter</text>
+
+  <!-- dashed feeds into LLM -->
+  <line x1="230" y1="615" x2="330" y2="698" stroke="#888" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowDashed)"/>
+  <line x1="610" y1="615" x2="530" y2="698" stroke="#888" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowDashed)"/>
+
+  <!-- Caption sits higher, where the two lines are still far apart, with a background so it never touches either line -->
+  <rect x="325" y="618" width="210" height="18" fill="#ffffff" opacity="0.9"/>
+  <text x="430" y="631" text-anchor="middle" font-size="8.5" fill="#888" font-style="italic">(both feed the LLM's augmented prompt)</text>
+</svg>

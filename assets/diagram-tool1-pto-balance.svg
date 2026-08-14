@@ -1,0 +1,77 @@
+<svg viewBox="0 0 1000 440" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#444" />
+    </marker>
+  </defs>
+
+  <text x="500" y="25" text-anchor="middle" font-size="15" font-weight="bold" fill="#12876a">
+    Tool 1: check_pto_balance — structured data augmentation
+  </text>
+
+  <!-- User prompt -->
+  <rect x="20" y="60" width="180" height="80" rx="8" fill="#fdf1f1" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="110" y="82" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0392b">Original User Prompt</text>
+  <text x="110" y="102" text-anchor="middle" font-size="9" fill="#555">"I'm employee EMP001.</text>
+  <text x="110" y="115" text-anchor="middle" font-size="9" fill="#555">Can I take 3 days of</text>
+  <text x="110" y="128" text-anchor="middle" font-size="9" fill="#555">PTO next week?"</text>
+
+  <line x1="200" y1="100" x2="250" y2="100" stroke="#444" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+  <!-- Agent -->
+  <rect x="250" y="70" width="110" height="60" rx="8" fill="#f3e8f8" stroke="#6c3d82" stroke-width="1.5"/>
+  <text x="305" y="93" text-anchor="middle" font-size="11" font-weight="bold" fill="#6c3d82">Agent</text>
+  <text x="305" y="110" text-anchor="middle" font-size="8" fill="#555">decides: needs</text>
+  <text x="305" y="121" text-anchor="middle" font-size="8" fill="#555">balance data</text>
+
+  <line x1="360" y1="100" x2="410" y2="100" stroke="#444" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+  <!-- Tool call -->
+  <rect x="420" y="60" width="190" height="80" rx="8" fill="#eafaf1" stroke="#12876a" stroke-width="1.5"/>
+  <text x="515" y="80" text-anchor="middle" font-size="11" font-weight="bold" fill="#12876a">check_pto_balance()</text>
+  <text x="515" y="97" text-anchor="middle" font-size="8" fill="#555">mcp/hr_data_mcp_server.py</text>
+  <text x="515" y="111" text-anchor="middle" font-size="8" fill="#555">input: employee_id="EMP001"</text>
+  <text x="515" y="125" text-anchor="middle" font-size="8" fill="#555">reads mock_data/pto_balances.json</text>
+
+  <!-- Tool call -> Tool Output -->
+  <line x1="515" y1="140" x2="515" y2="173" stroke="#444" stroke-width="1.8" marker-end="url(#arrow1)"/>
+  <text x="530" y="160" font-size="7.5" fill="#666" font-style="italic">tool result: JSON</text>
+
+  <!-- Tool output JSON: shifted right to open a real gap from Augmented Prompt -->
+  <rect x="400" y="175" width="250" height="90" rx="6" fill="#f4f4f4" stroke="#888" stroke-width="1.5"/>
+  <text x="525" y="192" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">Tool Output (structured JSON)</text>
+  <text x="415" y="208" font-size="8" font-family="monospace" fill="#333">{"employee_id": "EMP001",</text>
+  <text x="415" y="220" font-size="8" font-family="monospace" fill="#333"> "pto_days_total": 25,</text>
+  <text x="415" y="232" font-size="8" font-family="monospace" fill="#333"> "pto_days_used": 9,</text>
+  <text x="415" y="244" font-size="8" font-family="monospace" fill="#333"> "pto_days_remaining": 16,</text>
+  <text x="415" y="256" font-size="8" font-family="monospace" fill="#333"> "pending_requests": []}</text>
+
+  <!-- Tool Output -> Augmented Prompt: real ~80px gap, clear arrow, label sits mid-gap -->
+  <line x1="400" y1="220" x2="322" y2="220" stroke="#444" stroke-width="1.8" marker-end="url(#arrow1)"/>
+  <text x="361" y="212" text-anchor="middle" font-size="7.5" fill="#666" font-style="italic">injected into</text>
+
+  <!-- Augmented prompt: narrowed to make room for the gap -->
+  <rect x="20" y="175" width="300" height="140" rx="8" fill="#fdf6e3" stroke="#a8801f" stroke-width="1.5"/>
+  <text x="170" y="193" text-anchor="middle" font-size="11" font-weight="bold" fill="#a8801f">Augmented Prompt (sent to LLM)</text>
+  <text x="30" y="210" font-size="8" fill="#555">Original question:</text>
+  <text x="30" y="222" font-size="8" font-style="italic" fill="#333">"I'm employee EMP001. Can I take 3</text>
+  <text x="30" y="233" font-size="8" font-style="italic" fill="#333">days of PTO next week?"</text>
+  <text x="30" y="250" font-size="8" fill="#555">+ Tool result injected as context:</text>
+  <text x="30" y="262" font-size="8" font-family="monospace" fill="#333">employee_id: EMP001</text>
+  <text x="30" y="273" font-size="8" font-family="monospace" fill="#333">pto_days_remaining: 16</text>
+  <text x="30" y="284" font-size="8" font-family="monospace" fill="#333">pto_days_total: 25, used: 9</text>
+  <text x="30" y="301" font-size="8" font-style="italic" fill="#666">→ LLM now has real balance data,</text>
+  <text x="30" y="311" font-size="8" font-style="italic" fill="#666">  not a guess, to reason over.</text>
+
+  <!-- LLM -->
+  <rect x="440" y="345" width="150" height="60" rx="8" fill="#e8f0f9" stroke="#1a4d73" stroke-width="1.5"/>
+  <text x="515" y="368" text-anchor="middle" font-size="12" font-weight="bold" fill="#1a4d73">LLM</text>
+  <text x="515" y="385" text-anchor="middle" font-size="8" fill="#555">Gemma via OpenRouter</text>
+  <text x="515" y="398" text-anchor="middle" font-size="8" fill="#555">(get_model(), rag/answer.py)</text>
+
+  <!-- Augmented Prompt -> LLM -->
+  <polyline points="322,300 515,300 515,343" fill="none" stroke="#444" stroke-width="1.8" marker-end="url(#arrow1)"/>
+  <text x="443" y="325" text-anchor="middle" font-size="7.5" fill="#666" font-style="italic">sent as full context</text>
+
+  <text x="20" y="425" font-size="9" fill="#888">Key point: the LLM never calls the tool itself — the agent orchestrator calls it, then serializes the result into the prompt context before the LLM ever sees the question.</text>
+</svg>

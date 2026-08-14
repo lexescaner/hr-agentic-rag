@@ -1,0 +1,79 @@
+<svg viewBox="0 0 1000 440" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#444" />
+    </marker>
+  </defs>
+
+  <text x="500" y="25" text-anchor="middle" font-size="15" font-weight="bold" fill="#a8801f">
+    Tool 2: search_policy_documents — retrieved-context (RAG) augmentation
+  </text>
+
+  <!-- User prompt -->
+  <rect x="20" y="60" width="180" height="80" rx="8" fill="#fdf1f1" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="110" y="82" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0392b">Original User Prompt</text>
+  <text x="110" y="102" text-anchor="middle" font-size="9" fill="#555">"I'm employee EMP001.</text>
+  <text x="110" y="115" text-anchor="middle" font-size="9" fill="#555">Can I take 3 days of</text>
+  <text x="110" y="128" text-anchor="middle" font-size="9" fill="#555">PTO next week?"</text>
+
+  <line x1="200" y1="100" x2="250" y2="100" stroke="#444" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Agent -->
+  <rect x="250" y="70" width="110" height="60" rx="8" fill="#f3e8f8" stroke="#6c3d82" stroke-width="1.5"/>
+  <text x="305" y="93" text-anchor="middle" font-size="11" font-weight="bold" fill="#6c3d82">Agent</text>
+  <text x="305" y="110" text-anchor="middle" font-size="8" fill="#555">decides: needs</text>
+  <text x="305" y="121" text-anchor="middle" font-size="8" fill="#555">policy rules</text>
+
+  <line x1="360" y1="100" x2="410" y2="100" stroke="#444" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Tool call -->
+  <rect x="420" y="55" width="200" height="90" rx="8" fill="#fdf6e3" stroke="#a8801f" stroke-width="1.5"/>
+  <text x="520" y="75" text-anchor="middle" font-size="11" font-weight="bold" fill="#a8801f">search_policy_documents()</text>
+  <text x="520" y="92" text-anchor="middle" font-size="8" fill="#555">mcp/policy_mcp_server.py</text>
+  <text x="520" y="105" text-anchor="middle" font-size="8" fill="#555">query: "PTO notice period</text>
+  <text x="520" y="117" text-anchor="middle" font-size="8" fill="#555">and approval process"</text>
+  <text x="520" y="131" text-anchor="middle" font-size="8" fill="#555">→ rag/policy_rag.py search()</text>
+
+  <!-- Tool call -> Retrieved Chunks -->
+  <line x1="520" y1="145" x2="520" y2="173" stroke="#444" stroke-width="1.8" marker-end="url(#arrow2)"/>
+  <text x="537" y="163" font-size="7.5" fill="#666" font-style="italic">tool result: top-k chunks</text>
+
+  <!-- Retrieved chunks: shifted right to open a real gap from Augmented Prompt -->
+  <rect x="400" y="175" width="260" height="110" rx="6" fill="#f4f4f4" stroke="#888" stroke-width="1.5"/>
+  <text x="530" y="192" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">Retrieved Chunks (with citations)</text>
+  <text x="410" y="207" font-size="8" fill="#333">[PTO Policy, Requesting PTO] (dist. 0.29)</text>
+  <text x="410" y="218" font-size="7.5" fill="#555">"...submit requests at least 5 business</text>
+  <text x="410" y="228" font-size="7.5" fill="#555">days in advance..."</text>
+  <text x="410" y="245" font-size="8" fill="#333">[PTO Policy, Manager Approval] (dist. 0.33)</text>
+  <text x="410" y="256" font-size="7.5" fill="#555">"...requires manager approval..."</text>
+  <text x="410" y="272" font-size="7.5" fill="#555">[PTO Policy, Blackout Periods] (dist. 0.41)</text>
+
+  <!-- Retrieved Chunks -> Augmented Prompt: real ~80px gap, clear arrow, label sits mid-gap -->
+  <line x1="400" y1="230" x2="322" y2="230" stroke="#444" stroke-width="1.8" marker-end="url(#arrow2)"/>
+  <text x="361" y="222" text-anchor="middle" font-size="7.5" fill="#666" font-style="italic">injected into</text>
+
+  <!-- Augmented prompt: narrowed to make room for the gap -->
+  <rect x="20" y="175" width="300" height="145" rx="8" fill="#fdf6e3" stroke="#a8801f" stroke-width="1.5"/>
+  <text x="170" y="193" text-anchor="middle" font-size="11" font-weight="bold" fill="#a8801f">Augmented Prompt (sent to LLM)</text>
+  <text x="30" y="210" font-size="8" fill="#555">Policy context (from PROMPT_TEMPLATE):</text>
+  <text x="30" y="223" font-size="7.5" font-family="monospace" fill="#333">[PTO Policy, Requesting PTO]</text>
+  <text x="30" y="234" font-size="7.5" font-family="monospace" fill="#333">"...5 business days in advance..."</text>
+  <text x="30" y="248" font-size="7.5" font-family="monospace" fill="#333">[PTO Policy, Manager Approval]</text>
+  <text x="30" y="259" font-size="7.5" font-family="monospace" fill="#333">"...requires manager approval..."</text>
+  <text x="30" y="275" font-size="8" fill="#555">Employee question:</text>
+  <text x="30" y="287" font-size="7.5" font-style="italic" fill="#333">"Can I take 3 days of PTO next week?"</text>
+  <text x="30" y="304" font-size="8" font-style="italic" fill="#666">→ LLM cites [Doc, Section] per rule,</text>
+  <text x="30" y="314" font-size="8" font-style="italic" fill="#666">  never invents policy text.</text>
+
+  <!-- LLM -->
+  <rect x="440" y="345" width="150" height="60" rx="8" fill="#e8f0f9" stroke="#1a4d73" stroke-width="1.5"/>
+  <text x="515" y="368" text-anchor="middle" font-size="12" font-weight="bold" fill="#1a4d73">LLM</text>
+  <text x="515" y="385" text-anchor="middle" font-size="8" fill="#555">Gemma via OpenRouter</text>
+  <text x="515" y="398" text-anchor="middle" font-size="8" fill="#555">(get_model(), rag/answer.py)</text>
+
+  <!-- Augmented Prompt -> LLM -->
+  <polyline points="322,300 515,300 515,343" fill="none" stroke="#444" stroke-width="1.8" marker-end="url(#arrow2)"/>
+  <text x="438" y="325" text-anchor="middle" font-size="7.5" fill="#666" font-style="italic">sent as full context</text>
+
+  <text x="20" y="425" font-size="9" fill="#888">Key point: the same system prompt's guardrails (no unsupported claims, cite [Doc, Section]) apply here — this is where those rules actually get enforced, at generation time.</text>
+</svg>

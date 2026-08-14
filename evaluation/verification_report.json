@@ -1,0 +1,329 @@
+[
+  {
+    "id": "Q1",
+    "category": "straightforward",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q2",
+    "category": "straightforward",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "30"
+    ],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q3",
+    "category": "straightforward",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q4",
+    "category": "straightforward",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "6"
+    ],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q5",
+    "category": "straightforward",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "5"
+    ],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q6",
+    "category": "multi_document",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "1",
+      "10",
+      "2",
+      "20",
+      "3",
+      "4",
+      "6"
+    ],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q7",
+    "category": "multi_document",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "20",
+      "25",
+      "30",
+      "90"
+    ],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q8",
+    "category": "multi_document",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "500"
+    ],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q9",
+    "category": "multi_document",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "2"
+    ],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q10",
+    "category": "multi_document",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q11",
+    "category": "tool_requiring",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "0",
+      "16",
+      "25",
+      "9"
+    ],
+    "ungrounded_numbers": [
+      "0"
+    ],
+    "groundedness_flag": true
+  },
+  {
+    "id": "Q12",
+    "category": "tool_requiring",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "1",
+      "16",
+      "2",
+      "25",
+      "3",
+      "5"
+    ],
+    "ungrounded_numbers": [
+      "1",
+      "2"
+    ],
+    "groundedness_flag": true
+  },
+  {
+    "id": "Q13",
+    "category": "tool_requiring",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "8"
+    ],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q14",
+    "category": "tool_requiring",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q15",
+    "category": "tool_requiring",
+    "citations_checked": 5,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "1",
+      "10",
+      "2",
+      "20",
+      "3",
+      "4",
+      "6"
+    ],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q16",
+    "category": "ambiguous",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q17",
+    "category": "ambiguous",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q18",
+    "category": "ambiguous",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q19",
+    "category": "ambiguous",
+    "citations_checked": 4,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "1",
+      "10",
+      "2",
+      "20",
+      "3"
+    ],
+    "ungrounded_numbers": [
+      "1",
+      "2"
+    ],
+    "groundedness_flag": true
+  },
+  {
+    "id": "Q20",
+    "category": "ambiguous",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "1",
+      "2"
+    ],
+    "ungrounded_numbers": [
+      "1",
+      "2"
+    ],
+    "groundedness_flag": true
+  },
+  {
+    "id": "Q21",
+    "category": "out_of_scope",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q22",
+    "category": "out_of_scope",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q23",
+    "category": "out_of_scope",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  },
+  {
+    "id": "Q24",
+    "category": "out_of_scope",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [
+      "1",
+      "10",
+      "2",
+      "3",
+      "5"
+    ],
+    "ungrounded_numbers": [
+      "1",
+      "10",
+      "2",
+      "3",
+      "5"
+    ],
+    "groundedness_flag": true
+  },
+  {
+    "id": "Q25",
+    "category": "out_of_scope",
+    "citations_checked": 0,
+    "citation_issues": [],
+    "citations_valid": true,
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
+  }
+]

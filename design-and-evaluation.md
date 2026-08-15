@@ -184,9 +184,23 @@ gated — the 3 policy tools are general-purpose and answer the same way for any
 | `create_mock_hr_ticket` | |
 | `draft_hr_email` | |
 
-**Verified runtime tool-calling:** confirmed via CI (`tests/test_smoke.py` — live MCP tool
-discovery and a direct tool call, no LLM required) and extensively via manual/eval testing that
-the agent genuinely calls tools through the MCP layer at runtime, not via hard-coded direct calls.
+**CI test coverage (`tests/test_smoke.py`, 6 tests):**
+
+| # | Test | Verifies |
+|---|---|---|
+| 1 | `test_app_imports_and_creates` | App-level: `app.py` and `agent.py` import cleanly |
+| 2 | `test_health_route_registered` | Route-level: `/health` is registered |
+| 3 | `test_chat_route_registered` | Route-level: `/chat` is registered |
+| 4 | `test_health_endpoint_responds_without_agent` | `/health` degrades gracefully, doesn't crash, if agent init fails |
+| 5 | `test_mcp_tool_discovery` | Both MCP servers connect; `len(tools) >= 5`; confirms `check_pto_balance` and `search_policy_documents` are present by name |
+| 6 | `test_mcp_tool_call_direct` | A real, direct (non-LLM) call to `check_pto_balance` returns actual data, not just a schema |
+
+**Notes:** only 2 of the 8 tools (`check_pto_balance`, `search_policy_documents`) get dedicated,
+direct verification in CI — one confirmed present by name, one actually invoked. The other 6
+(`get_policy_section`, `check_policy_compliance`, `lookup_employee_profile`,
+`lookup_benefits_status`, `create_mock_hr_ticket`, `draft_hr_email`) have no dedicated CI test;
+their only coverage is indirect, via the evaluation suite (Section 7) and manual testing, not a
+call gated on every push.
 
 ---
 
@@ -591,7 +605,7 @@ rather than repeating it.
 
 | File | Purpose | Depends on |
 |---|---|---|
-| `tests/test_smoke.py` | 6 tests: app import/startup, route registration, `/health` degradation, live MCP tool discovery, direct MCP tool call | `app.py`, `agent.py`, running MCP servers |
+| `tests/test_smoke.py` | 6 tests: app import/startup, route registration, `/health` degradation, live MCP tool discovery, direct MCP tool call — full breakdown of what each test covers, and which 2 of 8 tools are directly verified, in Section 4 | `app.py`, `agent.py`, running MCP servers |
 | `conftest.py` | Adds project root to `sys.path` so `tests/` can import `app`/`agent` | — |
 
 **Execution:** `pytest tests/test_smoke.py -v` — runs automatically via `.github/workflows/ci.yml`

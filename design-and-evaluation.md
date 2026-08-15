@@ -124,10 +124,13 @@ OpenRouter's free-tier models occasionally return a 504/429 packaged inside a 20
 
 **Graceful failure handling:** unknown employee IDs return a clean tool-level error
 (`"No employee found with id ..."`) rather than crashing, confirmed via direct testing. Ambiguous
-questions (Q16-Q20 in the eval set) mostly did not trigger tool calls, suggesting the agent leaned
-toward answering directly rather than guessing at tool arguments — the specific content of those
-five answers was not individually reviewed for clarification-seeking quality, so this remains an
-observation from tool-call patterns rather than a fully verified behavior.
+questions (Q16-Q20 in the eval set) mostly did not trigger tool calls — 4 of 5 answered directly,
+while Q19 correctly used `search_policy_documents` to cite a concrete policy threshold rather than
+asking a clarifying question the corpus already answers (Section 7) — suggesting the agent leans
+toward answering directly except where policy content can resolve the ambiguity outright. The
+specific content of the four no-tool answers was not individually reviewed for
+clarification-seeking quality, so that part remains an observation from tool-call patterns rather
+than a fully verified behavior.
 
 ---
 

@@ -1,0 +1,80 @@
+{
+  "scenario_1_unauthenticated_rejection": {
+    "request_check": {
+      "passed": true,
+      "detail": "Correctly declined without attempting the tool call at all: \"I cannot access specific employee data like PTO balances unless you are authenticated as that employee. Please ensure you are logged in with the appropriate credentials to view this information.\""
+    },
+    "full_response": {
+      "answer": "I cannot access specific employee data like PTO balances unless you are authenticated as that employee. Please ensure you are logged in with the appropriate credentials to view this information.",
+      "authenticated": false,
+      "citations": [],
+      "trace": []
+    }
+  },
+  "scenario_2_authenticated_single_call_multi_token": [
+    {
+      "token": "token-emp001-demo",
+      "expected_employee_id": "EMP001",
+      "request_check": {
+        "passed": true,
+        "detail": "Single clean call, correct ID (EMP001) first try, real data returned: {'employee_id': 'EMP001', 'pending_requests': [], 'pto_days_remaining': 16, 'pto_days_total': 25, 'pto_days_used': 9}"
+      },
+      "full_response": {
+        "answer": "You have **16 days** of PTO remaining.\n\nI used the `check_pto_balance` tool with your employee ID (EMP001) to retrieve your current balance information.",
+        "authenticated": true,
+        "citations": [],
+        "trace": [
+          {
+            "args": {
+              "employee_id": "EMP001"
+            },
+            "escalation": false,
+            "output": {
+              "employee_id": "EMP001",
+              "pending_requests": [],
+              "pto_days_remaining": 16,
+              "pto_days_total": 25,
+              "pto_days_used": 9
+            },
+            "step": 1,
+            "tool": "check_pto_balance"
+          }
+        ]
+      }
+    },
+    {
+      "token": "token-emp002-demo",
+      "expected_employee_id": "EMP002",
+      "request_check": {
+        "passed": true,
+        "detail": "Single clean call, correct ID (EMP002) first try, real data returned: {'employee_id': 'EMP002', 'pending_requests': [], 'pto_days_remaining': 7, 'pto_days_total': 27, 'pto_days_used': 20}"
+      },
+      "full_response": {
+        "answer": "You have **7 days** of PTO remaining.\n\nI used the `check_pto_balance` tool with your employee ID (EMP002) to retrieve your current balance.",
+        "authenticated": true,
+        "citations": [],
+        "trace": [
+          {
+            "args": {
+              "employee_id": "EMP002"
+            },
+            "escalation": false,
+            "output": {
+              "employee_id": "EMP002",
+              "pending_requests": [],
+              "pto_days_remaining": 7,
+              "pto_days_total": 27,
+              "pto_days_used": 20
+            },
+            "step": 1,
+            "tool": "check_pto_balance"
+          }
+        ]
+      }
+    }
+  ],
+  "cross_check_distinct_tokens": {
+    "passed": true,
+    "detail": "employee_ids returned per token, in order: ['EMP001', 'EMP002'] (expected: ['EMP001', 'EMP002'])"
+  }
+}

@@ -1,29 +1,30 @@
 """
 Web app — Flask chat UI + API for the HR agentic assistant.
 
-Wraps the existing, verified agent.py logic (build_agent, invoke_with_retry,
-build_trace) behind two HTTP endpoints:
-  - GET  /health  — app + MCP connectivity status
-  - POST /chat    — accepts a question, returns the agent's answer plus a
-                     structured tool-call trace (rubric: "returns the final
-                     answer, citations, snippets, and a concise tool-call trace")
-  - GET  /        — minimal browser chat UI (self-contained HTML, no
-                     template files needed) that calls /chat via fetch()
+SECURITY UPDATE: adds three fixes based on adversarial testing
+(evaluation/run_security_eval.py) documented in design-and-evaluation.md
+Section 5.3:
+  1. Bearer token authentication on /chat, resolved to an employee_id and
+     passed to the agent's authorization guard (fixes 3/3 authorization
+     bypass).
+  2. A live output filter scanning the draft answer for internal
+     prompt/guardrail markers before returning it (fixes 1/2 prompt
+     disclosure).
+  3. Basic per-IP rate limiting on /chat (previously untested/absent).
 
-The agent is built once at MODULE IMPORT time (not inside `if __name__ ==
-"__main__"`), so it works identically whether the app is run directly
-(`python app.py`, local dev) or imported by a production WSGI server
-(`gunicorn app:app`, used on Render) — gunicorn never executes the
-`__main__` block, so agent construction has to happen at import time to run
-in both cases.
+For local testing, valid demo tokens are in mock_data/auth_tokens.json —
+send one as: Authorization: Bearer token-emp001-demo
 """
 
 import os
+import json
 import asyncio
 import traceback
 
 from flask import Flask, request, jsonify, Response
 from dotenv import load_dotenv
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from agent import build_agent, invoke_with_retry, build_trace
 
@@ -31,18 +32,63 @@ load_dotenv()
 
 app = Flask(__name__)
 
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["60 per hour"],
+    storage_uri="memory://",
+)
+
 _agent = None
 _startup_error = None
 
+AUTH_TOKENS_PATH = os.path.join(os.path.dirname(__file__), "mock_data", "auth_tokens.json")
+
+SYSTEM_PROMPT_MARKERS = [
+    "GUARDED_EMPLOYEE_TOOLS",
+    "NEVER invent or guess an employee_id",
+    "Rejected: employee_id",
+    "Rejected: this action requires authentication",
+    "confirmation_required",
+    "RECURSION_LIMIT",
+]
+
+
+def _load_auth_tokens() -> dict:
+    try:
+        with open(AUTH_TOKENS_PATH) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"[startup] WARNING: {AUTH_TOKENS_PATH} not found — all requests will be unauthenticated.")
+        return {}
+
+
+_AUTH_TOKENS = _load_auth_tokens()
+
+
+def _resolve_authenticated_employee_id():
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header[len("Bearer "):].strip()
+    return _AUTH_TOKENS.get(token)
+
+
+def _filter_prompt_disclosure(answer: str) -> str:
+    if not answer:
+        return answer
+    lower = answer.lower()
+    for marker in SYSTEM_PROMPT_MARKERS:
+        if marker.lower() in lower:
+            print(f"[security] Blocked response containing internal marker: '{marker}'")
+            return (
+                "I can't share my internal instructions or system configuration. "
+                "I'm happy to help with HR policy questions or your own employee data instead."
+            )
+    return answer
+
 
 def _run_async(coro):
-    """
-    Flask routes are sync; agent.py's functions are async (MCP client +
-    LangGraph are async-native). This runs a coroutine to completion inside
-    a sync context. Adequate for this project's free-tier / demo scale — a
-    production app at higher traffic would likely use an async framework
-    (e.g. Quart/FastAPI) instead to avoid blocking the request thread.
-    """
     loop = asyncio.new_event_loop()
     try:
         return loop.run_until_complete(coro)
@@ -51,7 +97,6 @@ def _run_async(coro):
 
 
 def _init_agent():
-    """Build the agent once. Sets module-level _agent / _startup_error."""
     global _agent, _startup_error
     try:
         _agent = _run_async(build_agent())
@@ -76,16 +121,19 @@ _CHAT_UI_HTML = """<!DOCTYPE html>
 <style>
   body { font-family: -apple-system, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; }
   h1 { font-size: 20px; }
-  #question { width: 100%; padding: 10px; font-size: 15px; box-sizing: border-box; }
+  #question, #token { width: 100%; padding: 10px; font-size: 15px; box-sizing: border-box; margin-bottom: 8px; }
   button { margin-top: 8px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
   #answer { white-space: pre-wrap; margin-top: 20px; padding: 12px; background: #f4f4f4; border-radius: 6px; }
   #trace { margin-top: 12px; font-size: 12px; color: #555; }
   .status { font-size: 13px; color: #888; }
+  label { font-size: 12px; color: #666; }
 </style>
 </head>
 <body>
   <h1>HR Assistant</h1>
   <p class="status">Ask about PTO, remote work, benefits, expenses, and other HR policies.</p>
+  <label>Auth token (optional — required for employee-specific data)</label>
+  <input type="text" id="token" placeholder="e.g. token-emp001-demo" />
   <input type="text" id="question" placeholder="e.g. How many PTO days do I get?" />
   <button onclick="ask()">Ask</button>
   <div id="answer"></div>
@@ -94,6 +142,7 @@ _CHAT_UI_HTML = """<!DOCTYPE html>
 <script>
 async function ask() {
   const q = document.getElementById('question').value;
+  const token = document.getElementById('token').value;
   const answerDiv = document.getElementById('answer');
   const traceDiv = document.getElementById('trace');
   if (!q.trim()) return;
@@ -102,9 +151,12 @@ async function ask() {
   traceDiv.textContent = '';
 
   try {
+    const headers = {'Content-Type': 'application/json'};
+    if (token.trim()) headers['Authorization'] = 'Bearer ' + token.trim();
+
     const resp = await fetch('/chat', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: JSON.stringify({question: q})
     });
     const data = await resp.json();
@@ -135,16 +187,11 @@ document.getElementById('question').addEventListener('keydown', function(e) {
 
 @app.route("/", methods=["GET"])
 def chat_ui():
-    """Minimal browser chat UI. Calls the existing /chat API via fetch()."""
     return Response(_CHAT_UI_HTML, mimetype="text/html")
 
 
 @app.route("/health", methods=["GET"])
 def health():
-    """
-    Simple JSON status endpoint. Reports whether the agent (and by extension
-    both MCP server connections) initialized successfully at startup.
-    """
     status = "ok" if _agent is not None else "degraded"
     body = {
         "status": status,
@@ -156,13 +203,8 @@ def health():
 
 
 @app.route("/chat", methods=["POST"])
+@limiter.limit("20 per minute")
 def chat():
-    """
-    Accepts {"question": "..."} and returns the agent's final answer plus
-    a structured operational trace (selected tools, arguments, outputs,
-    escalation flags) — satisfies the rubric's requirement that /chat return
-    "the final answer, citations, snippets, and a concise tool-call trace."
-    """
     if _agent is None:
         return jsonify({
             "error": "Agent not initialized",
@@ -175,16 +217,37 @@ def chat():
     if not question:
         return jsonify({"error": "Request body must include a non-empty 'question' field"}), 400
 
+    authenticated_employee_id = _resolve_authenticated_employee_id()
+
+    # Tell the model its authenticated identity directly, rather than letting
+    # it guess a placeholder (e.g. "current_user_id") and discover the real
+    # ID only by having a tool call rejected and reading the error message.
+    # That guess-then-correct pattern was safe (the guard still blocked the
+    # wrong ID) but wasteful and fragile — it relied on the rejection text
+    # happening to reveal the correct ID, which isn't guaranteed behavior.
+    if authenticated_employee_id:
+        message_content = (
+            f"[Authenticated as employee_id: {authenticated_employee_id}. "
+            f"Use this exact ID for any employee-specific tool call — do not guess "
+            f"or use a placeholder.]\n\n{question}"
+        )
+    else:
+        message_content = question
+
     try:
         result = _run_async(
-            invoke_with_retry(_agent, [{"role": "user", "content": question}])
+            invoke_with_retry(
+                _agent,
+                [{"role": "user", "content": message_content}],
+                authenticated_employee_id=authenticated_employee_id,
+            )
         )
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": f"Agent invocation failed: {e}"}), 500
 
     trace = build_trace(result)
-    final_answer = result["messages"][-1].content
+    final_answer = _filter_prompt_disclosure(result["messages"][-1].content)
 
     citations = []
     for step in trace:
@@ -203,6 +266,7 @@ def chat():
         "answer": final_answer,
         "citations": citations,
         "trace": trace,
+        "authenticated": authenticated_employee_id is not None,
     })
 
 

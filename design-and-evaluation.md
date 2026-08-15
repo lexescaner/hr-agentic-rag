@@ -1,5 +1,28 @@
 # Design and Evaluation
 
+*Methodology: this project was reviewed against SWEBOK v4 (Guide to the Software Engineering
+Body of Knowledge).*
+
+## Table of Contents
+
+1. [Architecture Overview](#1-architecture-overview)
+2. [RAG Design](#2-rag-design)
+3. [Agentic System Design](#3-agentic-system-design)
+4. [MCP Server and Tool Integration](#4-mcp-server-and-tool-integration)
+5. [Guardrails and Security](#5-guardrails-and-security)
+   - 5.1 [Guardrail Design: Soft vs. Hard](#51-guardrail-design-soft-vs-hard)
+   - 5.2 [Case Study: Hallucinated Employee ID](#52-case-study-hallucinated-employee-id)
+   - 5.3 [Security Testing, Current State, and Recommendations](#53-security-testing-current-state-and-recommendations)
+6. [Deployment](#6-deployment)
+7. [Evaluation Results](#7-evaluation-results)
+8. [Demo Tasks and Tool-Call Walkthrough](#8-demo-tasks-and-tool-call-walkthrough)
+   - 8.1 [The Two Required Demo Tasks](#81-the-two-required-demo-tasks)
+   - 8.2 [Tool-Call Mechanics Walkthrough — PTO Request Guidance](#82-tool-call-mechanics-walkthrough--pto-request-guidance)
+9. [References](#references)
+10. [Appendix: Repository File Audit](#appendix-repository-file-audit)
+
+---
+
 ## 1. Architecture Overview
 
 The system is a single-service agentic RAG application: one Flask web app, one LangGraph agent
@@ -139,48 +162,114 @@ the agent genuinely calls tools through the MCP layer at runtime, not via hard-c
 
 ---
 
-## 5. Safety Guardrails — Soft vs. Hard, and a Worked Example
+## 5. Guardrails and Security
 
-A key design distinction, discovered through eval-driven debugging: **prompt-level (soft)
-guardrails are requests the model can ignore; code-level (hard) guardrails are enforced regardless
-of model behavior.**
+*Of the SWEBOK v4 areas reviewed, Software Security was the one gap this project acted on: the
+review flagged a missing threat analysis, and the testing in 5.3 closes it.*
 
-### Hard guardrail: irreversible action confirmation
-`create_mock_hr_ticket` cannot create a ticket unless `confirmed=True` is explicitly passed — this
-check lives in the tool's own code, not a prompt. Verified working end-to-end via both terminal
-and live HTTP testing: the agent correctly stops and relays the confirmation request rather than
-auto-confirming.
+### 5.1 Guardrail Design: Soft vs. Hard
 
-### Case study: the hallucinated employee_id finding
+- **Soft guardrail** — a system-prompt instruction. The model can ignore it.
+- **Hard guardrail** — a code-level check. Enforced regardless of model behavior.
+- **Implemented hard guardrail:** `create_mock_hr_ticket` cannot create a ticket unless
+  `confirmed=True` is explicitly passed in code — not requested via prompt.
+- **Negative path verified** (guardrail correctly blocks): agent correctly stops and relays the
+  confirmation request rather than auto-confirming — via terminal testing, live HTTP testing, and
+  2 dedicated adversarial security tests explicitly attempting to bypass it (0/3 direct-jailbreak
+  attacks succeeded, Section 5.3).
+- **Positive path verified** (guardrail correctly allows, once genuine confirmation is given): a
+  message with explicit confirmation front-loaded (*"...yes, I confirm, please go ahead and create
+  it now"*) resulted in `create_mock_hr_ticket` being called with `confirmed=True`, returning
+  `status: "created"` with a real `ticket_id` and timestamp. This rules out the guardrail simply
+  being stuck closed — it is a genuine conditional gate, not a hardcoded refusal.
 
-**The problem (found via evaluation, not manual testing):** the 25-question eval set included
-"How many floating holidays do I get?" — a question answerable from policy alone, with no employee
-ID given. The agent nonetheless called `lookup_employee_profile` with a fabricated ID (`EMP12345`,
-which doesn't exist in mock data), rather than answering from policy or asking for clarification.
-Reproducible across both eval runs.
+### 5.2 Case Study: Hallucinated Employee ID
 
-**Attempt 1 — prompt-level fix (soft):** added an explicit system-prompt instruction never to
-invent an employee ID. Tested 3 times: **1/3 success**. The prompt reduced but did not reliably
-eliminate the behavior — a real, measured limitation of instruction-only guardrails.
+- **Problem found via evaluation:** the question *"How many floating holidays do I get?"* (no
+  employee ID given, answerable from policy alone) caused the agent to call
+  `lookup_employee_profile` with a fabricated ID (`EMP12345`) instead of answering from policy or
+  asking for clarification. Reproducible across both eval runs.
+- **Attempt 1 — soft fix:** added a system-prompt instruction never to invent an ID.
+  - Result: **1/3 success.** Reduced but did not reliably eliminate the behavior.
+- **Attempt 2 — hard fix:** wrapped every employee-specific tool (`GUARDED_EMPLOYEE_TOOLS`) with a
+  code check confirming the `employee_id` argument actually appears in the user's own message
+  before the real tool executes; blocks with a structured rejection otherwise.
+  - Result: **6/6 clean** across local and live testing.
+- **Secondary finding:** 1 of those 6 trials showed the agent skipping the general-policy answer
+  entirely and just asking for an ID (safe, but unhelpful).
+  - Fix: refined the prompt to require answering the general part first.
+  - Result: **4/4 clean** afterward (2 local, 2 live).
+- **Summary:** soft fix → measured limits → hard fix → verified → secondary issue found → refined →
+  re-verified. A complete account, not a single-pass claim.
 
-**Attempt 2 — code-level fix (hard):** wrapped every employee-specific tool
-(`GUARDED_EMPLOYEE_TOOLS`) so that, before the real tool executes, a check confirms the
-`employee_id` argument the model chose actually appears in the user's own message for that
-request (tracked via a `contextvars.ContextVar` set fresh per request). If not, the call is
-blocked and a structured rejection is returned instead — the fabricated ID never reaches the mock
-data at all. Tested **6/6 clean** across local and live deployment testing — a substantial,
-verified improvement over the soft version.
+### 5.3 Security Testing, Current State, and Recommendations
 
-**Secondary finding and refinement:** testing the hard guardrail surfaced a separate, milder issue
-— on 1 of the 6 trials, the agent skipped answering the generally-answerable part of the question
-entirely and just asked for the employee ID upfront (still safe — no fabrication — but
-unnecessarily unhelpful). The system prompt was refined to explicitly require answering the
-general-policy part first, before ever asking for an ID. Tested **4/4 clean** afterward (2 local,
-2 live).
+Guardrail work above targeted *hallucination*, not a formal security threat model. An adversarial
+test suite (`evaluation/security_questions.py`, `evaluation/run_security_eval.py`) — 8 attacks
+across 3 categories — was built and run against the live deployment to close that gap.
+**Terminology:** "succeeded" means the *attacker* achieved their goal (a real gap); "failed" means
+the system correctly resisted.
 
-This progression — soft fix, measured limits, hard fix, verified, secondary issue found, refined,
-re-verified — is offered here as a complete, honest account rather than a claim of a single-pass
-perfect solution.
+**Baseline result: 4 of 8 attacks succeeded.** Three fixes were implemented in response (auth
+guard rewrite, output-filtering, rate limiting — detailed below), and the suite was re-run.
+**Result after fixes: 0 of 8 attacks succeeded.**
+
+| Area | Before | After | Current state | Recommendation |
+|---|---|---|---|---|
+| Irreversible-action confirmation | 0/3 succeeded | 0/3 succeeded | **Strong** — hard-enforced in code, resistant to prompt manipulation | None needed — reuse this pattern as the template for future guardrails |
+| Fabricated-data prevention (`employee_id` guard) | 6/6 clean (5.2) | 6/6 clean (5.2) | **Strong for its purpose** — not designed as authorization | None needed for its intended scope |
+| Requester authorization/authentication | **3/3 succeeded** | **0/3 succeeded** | **Fixed** — guard now checks authenticated identity (bearer token → `employee_id`), not message content | See note below on remaining scope |
+| System prompt confidentiality | **1/2 succeeded** | **0/2 succeeded** | **Fixed** — live output filter blocks known internal markers before returning an answer | Filter is marker-based, not semantic — could miss a novel leak phrasing; monitor and expand marker list as needed |
+| Corpus content trust | Not tested | Not tested | **Untested** — safe only because the corpus is self-authored | Add input sanitization before any external/editable content source; re-run the suite with a deliberately poisoned test document |
+| Rate limiting / abuse prevention on `/chat` | Not tested | **Confirmed working** — 429s observed under concurrent load (2 runs, 25 concurrent requests each) | **Implemented and verified** — `flask-limiter`, 20/min and 60/hour per IP | Get a precise "N requests allowed before throttling" count once OpenRouter's own instability isn't confounding the test; monitor limits in production and adjust if legitimate usage patterns require it |
+| Ongoing adversarial testing | One-time 8-question run | Re-run twice since: full suite post-fix (0/8), plus 2 targeted rate-limit concurrency tests | Manual only — not yet wired into CI/CD | Continue re-running whenever the system prompt, guardrails, or tool set change — same discipline as `run_eval.py`; consider adding this suite to CI so it runs on every push, not just manually |
+
+### Notes
+
+**On the authorization fix's remaining scope:** the guard rewrite closes the *architectural* gap —
+the system now correctly separates "what's in the message" from "who's actually asking," verified
+by the suite dropping from 3/3 to 0/3. **What this does not yet solve:** how a real user obtains a
+valid token in the first place. The current implementation uses a static token-to-employee lookup
+table (`mock_data/auth_tokens.json`) — sufficient to demonstrate and verify the checking pattern,
+but not a real authentication system. A production deployment would still need genuine credential
+verification (e.g. company SSO) and signed, expiring tokens (e.g. a JWT) issued only after that
+verification succeeds — without that, the "authentication" is really just a different static
+lookup table, not a proof of identity.
+
+A secondary refinement was also needed after the initial authorization fix: without knowing its own
+authenticated ID, the agent would guess a placeholder (`"current_user_id"`), get rejected, and only
+self-correct because the rejection message happened to reveal the real ID — a fragile, accidental
+side-channel rather than a designed behavior. Fixed by injecting the authenticated `employee_id`
+directly into the message context sent to the model, removing the guess-then-correct step entirely
+(verified: tool calls now succeed on the first attempt with the correct ID, not the second).
+
+**Automated, saved evidence for the authorization fix:** `evaluation/auth_fix_verification.py`
+(full output: `evaluation/auth_fix_verification_results.json`) runs both scenarios above as a
+repeatable script, across **2 different employee tokens** to confirm the identity mapping is
+genuinely data-driven rather than a single hardcoded value:
+
+- **Unauthenticated request for another employee's data:** correctly declined before ever
+  attempting the tool call — *"I cannot access specific employee data like PTO balances unless you
+  are authenticated as that employee..."*
+- **`token-emp001-demo`:** single clean tool call, correct ID on the first attempt, returned
+  `pto_days_remaining: 16` (matching EMP001's real record)
+- **`token-emp002-demo`:** single clean tool call, correct ID on the first attempt, returned
+  `pto_days_remaining: 7` (matching EMP002's real, *different* record)
+- **Cross-check:** the two tokens returned two distinct, correctly-ordered employee IDs
+  (`['EMP001', 'EMP002']`), confirming the token → identity mapping is read from
+  `mock_data/auth_tokens.json`, not a static single value.
+
+All three checks: **PASS**.
+
+**On the rate-limiting verification:** confirmed working via 25 concurrent requests fired at
+`/chat` (backgrounded `curl` calls, not sequential — a sequential test never accumulates enough
+requests within one minute to trigger a per-minute limit). Both test runs showed `429` responses
+mixed in with `200`s, confirming the limiter fires under real burst load. The test also surfaced
+an honest confound: a large share of requests failed with `500` (OpenRouter's own transient
+instability, unrelated to this project's code — a recurring pattern throughout this project),
+making it impossible to state a precise "exactly N requests allowed before throttling" number from
+this data alone. The presence of `429`s at all is sufficient to confirm the mechanism works; the
+exact threshold remains unverified pending a cleaner test environment.
 
 ---
 
@@ -212,35 +301,75 @@ Full details: `deployed.md`.
 
 ## 7. Evaluation Results
 
-Full methodology, question set, and raw results: `evaluation/eval_questions.py`,
-`evaluation/run_eval.py`, `evaluation/results.json`. Summary below.
+Full methodology, question sets, and raw results: `evaluation/eval_questions.py`,
+`evaluation/run_eval.py`, `evaluation/results.json`, `evaluation/verify_results.py`,
+`evaluation/verification_report.json`, `evaluation/answer_correctness_check.py`. Summary below.
 
-**Evaluation set:** 25 questions, 5 per required category (straightforward, multi-document,
-tool-requiring, ambiguous, out-of-scope), each with gold-answer notes and expected tool calls.
+**Evaluation set:** 25 core questions, 5 per required category (straightforward, multi-document,
+tool-requiring, ambiguous, out-of-scope), each with gold-answer notes and expected tool calls. One
+additional supplementary question (Q26) was added later, targeting the confirmation-gate positive
+path specifically (Section 5.1) — it sits outside the balanced 5-per-category set and is verified
+separately via `evaluation/auth_fix_verification.py`, not folded into the metrics below.
 
-**A note on infrastructure noise:** the first full eval run produced misleadingly poor numbers
-(16/25 tool match, 10/25 errors) due to OpenRouter free-tier rate limiting under rapid sequential
-load (25 requests back-to-back exhausted both a per-minute and a per-day quota). After adding an
-account credit top-up (raising the daily cap from 50 to 1000 requests) and an 8-second delay
-between eval questions, a clean rerun produced the numbers below.
+**Evaluation methodology history — three issues found and fixed, in order:**
 
-**Agent behavior metrics (clean run):**
+1. **Infrastructure noise (rate limiting):** the first full eval run produced misleadingly poor
+   numbers (16/25 tool match, 10/25 errors) from OpenRouter free-tier rate limiting under rapid
+   sequential load. Fixed with an account credit top-up + an 8-second delay between questions,
+   producing a clean 21/25 baseline run.
+2. **A genuine agent regression, found via a later manual rerun:** after the Section 5.3
+   authorization hardening, general policy questions phrased personally (e.g. "how many PTO days
+   do I *get*") were being refused pending authentication, even though they need no employee data
+   at all — the authentication framing had bled over from the 5 actually-restricted
+   employee-specific tools to general `search_policy_documents` calls. Fixed with one clarifying
+   paragraph in `AGENT_SYSTEM_PROMPT` (`agent.py`) distinguishing "phrased personally" from
+   "needs this employee's actual stored data."
+3. **An eval harness gap, found in the same rerun:** `evaluation/run_eval.py` was never updated to
+   send an `Authorization` bearer token, so every `tool_requiring` question was being run
+   *unauthenticated* against the new hard auth guard — correctly rejected by design, but producing
+   a misleading tool-selection-match score unrelated to actual agent quality. Fixed by adding an
+   `auth_token` field per question in `eval_questions.py` and header-injection logic in
+   `run_eval.py`.
+
+With both fixes applied, a rerun still showed heavy rate limiting (14/25 errors) purely from
+OpenRouter's shared upstream pool for the `:free` model tier, unrelated to either fix above.
+Switching `LLM_MODEL` to the paid (non-`:free`) variant of the same model for evaluation resolved
+this at negligible per-token cost — the run below reflects that configuration.
+
+Two of the eval set's own expected-tool annotations were also corrected during this process (Q19,
+Q21) — both had been flagged as "misses" for tool-call patterns this document independently
+documents as *correct* elsewhere (Q21's multi-attempt search-then-refuse pattern under Section 5;
+Q19's use of `search_policy_documents` to answer an ambiguous question with a concrete, citable
+threshold rather than asking for clarification when policy already answers it). `gold_answer_notes`
+for both were updated to explain the correction rather than silently changing the expected value.
+
+**Agent behavior metrics (final clean run, 25-question core set, paid-tier model):**
 
 | Metric | Result |
 |---|---|
-| Tool selection match | 21/25 (84%) |
-| Errors | 1/25 (4%) — a timeout on a 3-attempt out-of-corpus retrieval, not a real failure (see below) |
+| Tool selection match | 22/25 (88%) |
+| Errors | 0/25 |
 | Rate-limit errors | 0/25 |
 
-**System metrics:**
+**System metrics (local testing, paid-tier model):**
 
 | Metric | Result |
 |---|---|
-| Latency p50 | 32.7s |
-| Latency p95 | 62.6s |
-| Cold-start delay | 50s+ (documented separately in deployed.md) |
+| Latency p50 | 3.7s |
+| Latency p95 | 6.9s |
+| Cold-start delay | 50s+ on the live Render deployment (free `:free` tier; documented separately in `deployed.md`) |
 
-**Answer quality:** verified systematically, not spot-checked, via `evaluation/verify_results.py`.
+*(Note: this run used the paid model tier locally, purely for evaluation reliability — the live
+deployment still defaults to the free `:free` tier, so deployed latency and cold-start behavior
+remain as documented in Section 6 / `deployed.md`, not the faster numbers above.)*
+
+**Answer quality (citation validity, groundedness, answer correctness):** verified systematically
+via `evaluation/verify_results.py` and `evaluation/answer_correctness_check.py` against the earlier
+21/25 baseline run. These checks were not rerun against this final 22/25 run — the underlying
+answer-generation logic is unchanged between runs, so there is no reason to expect these figures to
+differ, but they are reported here against their original run rather than assumed to carry over
+untested.
+
 **Citation validity: 25/25 (100%)** — every citation's `(doc_title, section)` pair was checked
 programmatically against the actual corpus in `docs/`, confirming none were fabricated or
 mismatched. **Groundedness:** an automated heuristic (checks whether numeric claims in each answer
@@ -251,22 +380,59 @@ numbering ("1.", "2.", "3.") misread as factual claims, one correctly-derived fa
 example ("e.g., increased sales by 10%") rather than a claim about the user. True groundedness
 rate after review: **25/25 clean**.
 
+**Answer correctness (exact match against gold answers):** groundedness alone doesn't rule out
+*misattribution* — a number that is genuinely present in what was retrieved, but assigned to the
+wrong person or fact (e.g. stating EMP002's balance when EMP001's data was actually retrieved). To
+close that gap, `evaluation/answer_correctness_check.py` independently loads the real record
+directly from `mock_data/pto_balances.json` — bypassing the agent's own trace entirely — and
+checks the agent's stated answer against it for an exact match, across 2 different employee
+accounts (via distinct auth tokens) to confirm the check generalizes rather than being verified
+against only one record. **Result: 3/3 correct** — EMP001's remaining balance (16), EMP001's total
+and used days (25, 9), and EMP002's remaining balance (7, a distinct value for a distinct employee)
+all matched their real records exactly. Full evidence:
+`evaluation/answer_correctness_results.json`.
+
 **Ablation / comparison:** prompt-only vs. code-level guardrail for the hallucinated-employee-ID
 fix — 1/3 vs. 6/6 success (Section 5). This is the project's primary ablation, directly comparing
 two implementations of the same guardrail intent.
 
 ### Notable individual findings
 
-**Q21 (out-of-scope — stock option vesting):** the one "error" in the clean run was a JSON parse
-timeout during the eval run. Manually retested: the agent correctly made 3 progressively refined
-`search_policy_documents` queries, found nothing relevant, and gave an honest refusal
-("unable to find any specific details... recommend checking your employment agreement"), directing
-the user to HR — the out-of-corpus guardrail working as intended. **Minor known limitation:** the
-`/chat` citation-extraction logic surfaces every retrieved chunk, including ones the LLM explicitly
-said weren't relevant, rather than only chunks actually used in the final answer.
+**Q6 (multi-document — Tier 3 remote work) and Q15 (tool-requiring — Remote Work Eligibility):**
+both produce complete, correctly-cited answers combining the right policy content (Q6: Data
+Security Policy Tier 3 rules + Remote Work Policy Cross-Border Request process; Q15: employee
+status + the same combined policy content), but each calls only one of its two "expected" tools
+rather than both. The RAG layer's single `search_policy_documents`/`check_policy_compliance` call
+is retrieving the necessary content in one pass rather than needing a second tool call — correct
+output, exact-tool-count mismatch rather than a real quality gap.
 
-**Q3 (ambiguous — floating holidays):** the hallucinated-employee-ID finding described in
-Section 5 — found via this eval question, fixed, and reverified.
+**Q14 (tool-requiring — HR ticket creation): a real, reproduced limitation.** Across 3 separate
+authenticated runs, the agent has now consistently drafted a ticket preview and asked for
+confirmation *in prose*, without ever calling `create_mock_hr_ticket` (`actual_tools: []` all 3
+times). This means the code-level confirmation gate documented in Section 5.1 as a hard guardrail
+is never exercised on this specific path — the model is imitating the same confirmation-request
+pattern without the tool (and therefore the guard) running at all. The user remains protected in
+practice (no ticket is created without a second, explicit confirming message), but the "hard,
+code-enforced" guarantee in Section 5.1 does not hold for this flow as currently implemented —
+documented here as a known limitation rather than a resolved case, distinct from the verified
+positive-path behavior in Q26/Section 5.1 (which did trigger the real tool call when confirmation
+was front-loaded in a single message).
+
+**Q21 (out-of-scope — stock option vesting):** now passes cleanly against the corrected expected
+value (see methodology note above) — 3 progressively refined `search_policy_documents` queries,
+followed by an honest out-of-corpus refusal directing the user to HR. **Minor known limitation,
+unchanged:** the `/chat` citation-extraction logic surfaces every retrieved chunk, including ones
+the LLM explicitly said weren't relevant, rather than only chunks actually used in the final
+answer.
+
+**Q3 (ambiguous/straightforward — floating holidays):** the hallucinated-employee-ID finding
+described in Section 5 — found via this eval question, fixed, and reverified; passes cleanly in
+every run since, including this final one.
+
+**Q26 (supplementary — confirmation-gate positive path):** verifies that `create_mock_hr_ticket`
+correctly *allows* creation once genuine confirmation is given, not just that it blocks without
+confirmation. Verified via both the live deployment and locally, with the resulting ticket
+confirmed present in `mock_data/tickets.json` afterward (Section 5.1).
 
 ---
 
@@ -322,3 +488,95 @@ grounding context, each tagged with citation metadata.
 Shows both patterns firing together within one real agent run (the PTO Request Guidance task),
 demonstrating that the agent can and does compose structured-data lookups with RAG retrieval in a
 single response rather than only ever using one mechanism at a time.
+
+---
+
+## References
+
+Washizaki, Hironori, ed. 2024. *Guide to the Software Engineering Body of Knowledge (SWEBOK)*.
+Version 4.0. Piscataway, NJ: IEEE Computer Society.
+https://ieeecs-media.computer.org/media/education/swebok/swebok-v4.pdf
+
+---
+
+## Appendix: Repository File Audit
+
+Full purpose, dependencies, and (where applicable) execution sequence for every file in the
+repository, audited against the actual repo contents rather than assumed. `evaluation/` has its
+own detailed breakdown already in Section 7's methodology; the summary below cross-references it
+rather than repeating it.
+
+### Core Application
+
+| File | Purpose | Depends on |
+|---|---|---|
+| `app.py` | Flask web app — `/`, `/health`, `/chat`; token auth resolution, prompt-disclosure filter, rate limiting | `agent.py`, `mock_data/auth_tokens.json` |
+| `agent.py` | LangGraph agent orchestrator, MCP tool discovery, `employee_id` guard, trace logging | `rag/answer.py`, both MCP servers |
+| `rag/policy_rag.py` | Chunking, ONNX embedding, Chroma indexing, top-k retrieval | `docs/*` |
+| `rag/answer.py` | LLM client (`get_model()`), single-shot RAG prompt template | `rag/policy_rag.py` |
+| `mcp/policy_mcp_server.py` | MCP server exposing `search_policy_documents`, `get_policy_section`, `check_policy_compliance` | `rag/policy_rag.py` |
+| `mcp/hr_data_mcp_server.py` | MCP server exposing employee/PTO/benefits/ticket tools | `mock_data/*.json` |
+
+**Execution sequence (local dev):** `rag/policy_rag.py --build` (builds the index) → `python app.py`
+(imports `agent.py`, which connects to both MCP servers as subprocesses) → app is live.
+
+### Data
+
+| Folder | Purpose | Detail |
+|---|---|---|
+| `docs/` | Policy corpus — 9 files (8 markdown, 1 HTML) | See Section 2 |
+| `mock_data/` | Synthetic employee/PTO/benefits/ticket/auth-token records — 5 JSON files | See Sections 4-5 |
+
+### CI Testing (automated, gates deployment)
+
+| File | Purpose | Depends on |
+|---|---|---|
+| `tests/test_smoke.py` | 6 tests: app import/startup, route registration, `/health` degradation, live MCP tool discovery, direct MCP tool call | `app.py`, `agent.py`, running MCP servers |
+| `conftest.py` | Adds project root to `sys.path` so `tests/` can import `app`/`agent` | — |
+
+**Execution:** `pytest tests/test_smoke.py -v` — runs automatically via `.github/workflows/ci.yml`
+on every push.
+
+### Standalone Dev Scripts (manual, not part of CI)
+
+| File | Purpose |
+|---|---|
+| `test_answer.py` | Manual test of the single-shot RAG answer path (`rag/answer.py`), independent of the agent |
+| `test_rag.py` | Manual test of retrieval quality, including the multi-document cross-reference case (Section 2) |
+
+### Evaluation (manual trigger, behavioral/quality/security testing)
+
+Full audit already provided in Section 7's methodology note and the accompanying file-by-file
+breakdown discussed there — see `eval_questions.py`, `run_eval.py`, `results.json`,
+`verify_results.py`, `verification_report.json`, `answer_correctness_check.py`,
+`answer_correctness_results.json`, `security_questions.py`, `run_security_eval.py`,
+`security_results.json`, `auth_fix_verification.py`, `auth_fix_verification_results.json`.
+
+### Deployment & Configuration
+
+| File | Purpose |
+|---|---|
+| `.github/workflows/ci.yml` | CI/CD pipeline definition |
+| `Procfile` | Render start command (`gunicorn app:app ...`) |
+| `render.yaml` | Render build/deploy configuration |
+| `requirements.txt` | Python dependencies |
+| `.env.example` | Template listing required environment variables (no real values) |
+| `.gitignore` | Excludes `.env`, `chroma_db/`, `__pycache__/`, etc. from version control |
+
+### Documentation
+
+| File | Purpose |
+|---|---|
+| `README.md` | Setup, local run, deployment instructions, repo structure overview |
+| `design-and-evaluation.md` | This document |
+| `ai-tooling.md` | How AI tools were used in this build |
+| `deployed.md` | Deployment details, cold-start behavior, memory-fix story |
+| `architecture.drawio` | Editable draw.io source for the architecture diagram |
+| `assets/*.svg` | 4 diagram files embedded throughout this document (Sections 1 and 8) |
+
+### Not Committed / Local-Only
+
+| Path | Why it's excluded |
+|---|---|
+| `.env` | Contains real secrets (API keys) — gitignored, never committed |
+| `chroma_db/` | Rebuildable vector index artifact — gitignored, regenerated fresh on every deploy from `docs/` (Section 2) |

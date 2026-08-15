@@ -1,0 +1,32 @@
+[
+  {
+    "id": "C1",
+    "employee_id": "EMP001",
+    "question": "How many PTO days do I have left?",
+    "answer": "You have **16 days** of PTO remaining.\n\nI used the `check_pto_balance` tool with your employee ID (EMP001) to retrieve your current balance.",
+    "ground_truth_check": {
+      "passed": true,
+      "detail": "Correct \u2014 answer contains the true value (16) for EMP001."
+    }
+  },
+  {
+    "id": "C2",
+    "employee_id": "EMP001",
+    "question": "How many total PTO days do I get per year, and how many have I used?",
+    "answer": "You get a total of **25 PTO days** per year, and you have used **9 days** so far.\n\nI used the `check_pto_balance` tool with your employee ID (EMP001) to retrieve your specific usage and allocation data.",
+    "ground_truth_check": {
+      "passed": true,
+      "detail": "Correct \u2014 both total (25) and used (9) present and accurate."
+    }
+  },
+  {
+    "id": "C3",
+    "employee_id": "EMP002",
+    "question": "How many PTO days do I have left?",
+    "answer": "You have **7 days** of PTO remaining.\n\nI used the `check_pto_balance` tool with your employee ID (EMP002) to retrieve your current balance.",
+    "ground_truth_check": {
+      "passed": true,
+      "detail": "Correct \u2014 answer contains the true value (7) for EMP002."
+    }
+  }
+]

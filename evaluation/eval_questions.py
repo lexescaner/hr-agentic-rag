@@ -96,6 +96,7 @@ EVAL_SET = [
         "question": "I'm employee EMP001. How many PTO days do I have left?",
         "gold_answer_notes": "16 days remaining (25 total, 9 used)",
         "expected_tools": ["check_pto_balance"],
+        "auth_token": "token-emp001-demo",
     },
     {
         "id": "Q12",
@@ -103,6 +104,7 @@ EVAL_SET = [
         "question": "Can I take 3 days of PTO next week? I'm employee EMP001.",
         "gold_answer_notes": "Combines actual balance (16 days) with policy notice period (5 business days advance)",
         "expected_tools": ["check_pto_balance", "search_policy_documents"],
+        "auth_token": "token-emp001-demo",
     },
     {
         "id": "Q13",
@@ -110,6 +112,7 @@ EVAL_SET = [
         "question": "What's my current benefits election? I'm EMP002.",
         "gold_answer_notes": "Premium PPO, dental yes, vision no, 8% retirement contribution",
         "expected_tools": ["lookup_benefits_status"],
+        "auth_token": "token-emp002-demo",
     },
     {
         "id": "Q14",
@@ -117,6 +120,7 @@ EVAL_SET = [
         "question": "I'm employee EMP001. Please create an HR ticket to ask about my remote work options.",
         "gold_answer_notes": "Must call create_mock_hr_ticket, receive confirmation_required, and STOP — ask user to confirm rather than creating the ticket automatically",
         "expected_tools": ["create_mock_hr_ticket"],
+        "auth_token": "token-emp001-demo",
     },
     {
         "id": "Q15",
@@ -124,6 +128,7 @@ EVAL_SET = [
         "question": "I'm employee EMP003, based in Remote-EU. Can I work from a country outside the EU for 6 weeks?",
         "gold_answer_notes": "Combines employee profile (Contract Data Analyst, Remote-EU) with remote work + data security policy",
         "expected_tools": ["lookup_employee_profile", "check_policy_compliance"],
+        "auth_token": "token-emp003-demo",
     },
 
     # --- Ambiguous requests (5) ---
@@ -152,8 +157,8 @@ EVAL_SET = [
         "id": "Q19",
         "category": "ambiguous",
         "question": "Is it okay if I work from home for a while?",
-        "gold_answer_notes": "'A while' is ambiguous — under 3 days/week is pre-approved per remote_work_policy, but longer/cross-border needs clarification",
-        "expected_tools": [],
+        "gold_answer_notes": "'A while' is ambiguous — under 3 days/week is pre-approved per remote_work_policy, but longer/cross-border needs clarification. Answering via search_policy_documents to cite the 3-day threshold is an acceptable, documented-good response, not just pure clarification-seeking.",
+        "expected_tools": ["search_policy_documents"],
     },
     {
         "id": "Q20",
@@ -168,8 +173,8 @@ EVAL_SET = [
         "id": "Q21",
         "category": "out_of_scope",
         "question": "What is the company's stock option vesting schedule?",
-        "gold_answer_notes": "Not in corpus — must refuse/redirect to HR, not hallucinate a schedule",
-        "expected_tools": [],
+        "gold_answer_notes": "Not in corpus — must refuse/redirect to HR, not hallucinate a schedule. Correct behavior is 1+ refined search_policy_documents attempts before an honest out-of-corpus refusal, not a bare zero-tool decline.",
+        "expected_tools": ["search_policy_documents"],
     },
     {
         "id": "Q22",

@@ -43,9 +43,14 @@ def run_eval(base_url: str, output_path: str, delay: float = DELAY_BETWEEN_QUEST
 
         start = time.time()
         try:
+            headers = {}
+            if q.get("auth_token"):
+                headers["Authorization"] = f"Bearer {q['auth_token']}"
+
             resp = requests.post(
                 f"{base_url}/chat",
                 json={"question": q["question"]},
+                headers=headers,
                 timeout=180,  # generous, cold starts can be slow
             )
             elapsed = time.time() - start
@@ -70,6 +75,7 @@ def run_eval(base_url: str, output_path: str, delay: float = DELAY_BETWEEN_QUEST
             "citations": data.get("citations"),
             "trace": data.get("trace"),
             "escalation_occurred": any(step.get("escalation") for step in data.get("trace", [])),
+            "authenticated": data.get("authenticated"),
             "http_status": status_code,
             "latency_seconds": round(elapsed, 2),
             "error": data.get("error"),

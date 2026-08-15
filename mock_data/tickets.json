@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "ticket_id": "TCK0001",
+    "employee_id": "EMP001",
+    "subject": "Remote Work Options Inquiry",
+    "details": "Employee is inquiring about their remote work options.",
+    "status": "open",
+    "created_at": "2026-08-14T19:11:58.156114+00:00"
+  }
+]

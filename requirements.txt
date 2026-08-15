@@ -20,3 +20,4 @@ python-dotenv
 pytest
 requests
 gunicorn
+flask-limiter

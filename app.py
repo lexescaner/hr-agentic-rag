@@ -133,7 +133,7 @@ _CHAT_UI_HTML = """<!DOCTYPE html>
   <h1>HR Assistant</h1>
   <p class="status">Ask about PTO, remote work, benefits, expenses, and other HR policies.</p>
   <label>Auth token (optional — required for employee-specific data)</label>
-  <input type="text" id="token" placeholder="e.g. token-emp001-demo" />
+  <input type="text" id="token" placeholder="e.g. token-xxxx-demo (see mock_data/auth_tokens.json)" />
   <input type="text" id="question" placeholder="e.g. How many PTO days do I get?" />
   <button onclick="ask()">Ask</button>
   <div id="answer"></div>

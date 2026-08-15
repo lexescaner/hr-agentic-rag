@@ -188,9 +188,6 @@ gated — the 3 policy tools are general-purpose and answer the same way for any
 discovery and a direct tool call, no LLM required) and extensively via manual/eval testing that
 the agent genuinely calls tools through the MCP layer at runtime, not via hard-coded direct calls.
 
-**Full tool definitions (exact signatures, docstrings, guard wiring):** `mcp/policy_mcp_server.py`,
-`mcp/hr_data_mcp_server.py`, `agent.py` (`GUARDED_EMPLOYEE_TOOLS`, `apply_employee_id_guard`).
-
 ---
 
 ## 5. Guardrails and Security

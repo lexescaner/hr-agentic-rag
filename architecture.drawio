@@ -16,8 +16,13 @@
         </mxCell>
 
         <!-- Agent Orchestrator -->
-        <mxCell id="agent" value="Agent Orchestrator (agent.py)&#10;LangGraph ReAct agent, single loop&#10;- decides: RAG alone, or tool call(s) needed&#10;- employee_id guard wraps sensitive tools&#10;- operational trace logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8f8;strokeColor=#6c3d82;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
+        <mxCell id="agent" value="Agent Orchestrator (agent.py)&#10;LangGraph ReAct agent, single loop&#10;- decides: RAG alone, or tool call(s) needed&#10;- guard verifies authenticated employee_id&#10;- operational trace logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8f8;strokeColor=#6c3d82;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
           <mxGeometry x="240" y="220" width="380" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Auth Resolution (added after Section 5.3 authentication work) -->
+        <mxCell id="auth" value="Auth Resolution&#10;Authorization: Bearer &lt;token&gt;&#10;&#8594; authenticated employee_id&#10;injected into message (Section 5.3)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3e6;strokeColor=#b8631f;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="610" y="115" width="260" height="70" as="geometry" />
         </mxCell>
 
         <!-- MCP Server: policy -->
@@ -46,6 +51,9 @@
         </mxCell>
 
         <!-- Edges -->
+        <mxCell id="e_auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#888;strokeWidth=1.5;dashed=1;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="flask" target="auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#444;strokeWidth=1.5;endArrow=block;" edge="1" parent="1" source="user" target="flask">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>

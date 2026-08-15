@@ -2,10 +2,16 @@
   {
     "id": "Q1",
     "category": "straightforward",
-    "citations_checked": 0,
+    "citations_checked": 4,
     "citation_issues": [],
     "citations_valid": true,
-    "answer_numbers": [],
+    "answer_numbers": [
+      "25",
+      "27",
+      "28",
+      "3",
+      "5"
+    ],
     "ungrounded_numbers": [],
     "groundedness_flag": false
   },
@@ -24,10 +30,13 @@
   {
     "id": "Q3",
     "category": "straightforward",
-    "citations_checked": 0,
+    "citations_checked": 4,
     "citation_issues": [],
     "citations_valid": true,
-    "answer_numbers": [],
+    "answer_numbers": [
+      "2",
+      "5"
+    ],
     "ungrounded_numbers": [],
     "groundedness_flag": false
   },
@@ -38,7 +47,9 @@
     "citation_issues": [],
     "citations_valid": true,
     "answer_numbers": [
-      "6"
+      "20",
+      "6",
+      "90"
     ],
     "ungrounded_numbers": [],
     "groundedness_flag": false
@@ -82,7 +93,6 @@
     "answer_numbers": [
       "20",
       "25",
-      "30",
       "90"
     ],
     "ungrounded_numbers": [],
@@ -151,7 +161,8 @@
       "2",
       "25",
       "3",
-      "5"
+      "5",
+      "9"
     ],
     "ungrounded_numbers": [
       "1",
@@ -240,7 +251,9 @@
       "10",
       "2",
       "20",
-      "3"
+      "3",
+      "4",
+      "6"
     ],
     "ungrounded_numbers": [
       "1",
@@ -254,20 +267,14 @@
     "citations_checked": 0,
     "citation_issues": [],
     "citations_valid": true,
-    "answer_numbers": [
-      "1",
-      "2"
-    ],
-    "ungrounded_numbers": [
-      "1",
-      "2"
-    ],
-    "groundedness_flag": true
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
   },
   {
     "id": "Q21",
     "category": "out_of_scope",
-    "citations_checked": 0,
+    "citations_checked": 16,
     "citation_issues": [],
     "citations_valid": true,
     "answer_numbers": [],
@@ -300,21 +307,9 @@
     "citations_checked": 0,
     "citation_issues": [],
     "citations_valid": true,
-    "answer_numbers": [
-      "1",
-      "10",
-      "2",
-      "3",
-      "5"
-    ],
-    "ungrounded_numbers": [
-      "1",
-      "10",
-      "2",
-      "3",
-      "5"
-    ],
-    "groundedness_flag": true
+    "answer_numbers": [],
+    "ungrounded_numbers": [],
+    "groundedness_flag": false
   },
   {
     "id": "Q25",

@@ -170,12 +170,26 @@ than a fully verified behavior.
 | `create_mock_hr_ticket(employee_id, subject, details, confirmed=False)` | Mock ticket creation, gated behind explicit confirmation |
 | `draft_hr_email(to_employee_id, subject, body)` | Mock-only draft, never actually sent |
 
-7 tools total (exceeds the 5-tool minimum); at least one uses the RAG index, at least one uses
+**8 tools total** (exceeds the 5-tool minimum); at least one uses the RAG index, at least one uses
 mock structured data, satisfying both required categories.
+
+**Which tools require authentication:** only tools that touch a specific employee's own data are
+gated — the 3 policy tools are general-purpose and answer the same way for anyone.
+
+| Gated — `mcp/hr_data_mcp_server.py` (`GUARDED_EMPLOYEE_TOOLS` in `agent.py`, requires a valid bearer token — Section 5.3) | Ungated — `mcp/policy_mcp_server.py` (no authentication required) |
+|---|---|
+| `lookup_employee_profile` | `search_policy_documents` |
+| `check_pto_balance` | `get_policy_section` |
+| `lookup_benefits_status` | `check_policy_compliance` |
+| `create_mock_hr_ticket` | |
+| `draft_hr_email` | |
 
 **Verified runtime tool-calling:** confirmed via CI (`tests/test_smoke.py` — live MCP tool
 discovery and a direct tool call, no LLM required) and extensively via manual/eval testing that
 the agent genuinely calls tools through the MCP layer at runtime, not via hard-coded direct calls.
+
+**Full tool definitions (exact signatures, docstrings, guard wiring):** `mcp/policy_mcp_server.py`,
+`mcp/hr_data_mcp_server.py`, `agent.py` (`GUARDED_EMPLOYEE_TOOLS`, `apply_employee_id_guard`).
 
 ---
 
@@ -354,32 +368,20 @@ Switching `LLM_MODEL` to the paid (non-`:free`) variant of the same model for ev
 this at negligible per-token cost — the run below reflects that configuration.
 
 Two of the eval set's own expected-tool annotations were also corrected during this process (Q19,
-Q21) — both had been flagged as "misses" for tool-call patterns this document independently
-documents as *correct* elsewhere (Q21's multi-attempt search-then-refuse pattern under Section 5;
-Q19's use of `search_policy_documents` to answer an ambiguous question with a concrete, citable
-threshold rather than asking for clarification when policy already answers it). `gold_answer_notes`
-for both were updated to explain the correction rather than silently changing the expected value.
+Q21) — both had been flagged as "misses" for tool-call patterns this document already documents as
+*correct* elsewhere (Q21: Section 2's out-of-corpus guardrail bullet; Q19: Section 3's ambiguous-
+question handling). `gold_answer_notes` for both were updated to explain the correction rather than
+silently changing the expected value.
 
-4. **Two further findings, both closed:** Q14 (Section 5.1/5.2's confirmation-gate question) was
-   found to skip the actual `create_mock_hr_ticket` tool call entirely, imitating a confirmation
-   request in prose instead — traced to `AGENT_SYSTEM_PROMPT` over-applying its "don't call again
-   with confirmed=True" instruction to the *first* call as well; fixed by clarifying the prompt,
-   reverified 3/3 clean (Section 7 findings below). Separately, Q7 was found to intermittently
-   return a completely empty final answer with no exception raised — a silent failure mode the
-   existing exception-based retry never caught; fixed by extending `invoke_with_retry()` to treat
-   an empty final answer as a retryable failure (Section 3, Resilience).
-5. **A genuine content gap, closed:** Q15 (the Remote Work Eligibility required workflow) was found
-   to sometimes skip `lookup_employee_profile` entirely, producing a generic eligibility answer
-   that never referenced EMP003's contractor status — contradicting this document's own Section 3
-   claim that this workflow was verified to flag that status. Fixed by adding an explicit
-   instruction to `AGENT_SYSTEM_PROMPT`: for any question asking whether a specific employee is
-   eligible for something where employment type could affect the answer, call
-   `lookup_employee_profile` before `check_policy_compliance`. Reverified 3/3 clean, each run
-   correctly citing EMP003's real contractor status from the mock record; a follow-up spot-check on
-   Q6 (no employee named) confirmed the change did not cause over-calling `lookup_employee_profile`
-   where it isn't needed.
+4. **Two further findings, both closed:** Q14's confirmation gate and Q7's silent empty-answer
+   failure — both found during this rerun, both fixed, both reverified 3/3 clean. Full root cause
+   and fix detail for each: see their entries under "Notable individual findings" below.
+5. **A genuine content gap, closed:** Q15's Remote Work Eligibility workflow was found to sometimes
+   skip a required profile lookup, contradicting this document's own Section 3 claim about that
+   workflow. Fixed, reverified 3/3 clean. Full detail: see Q15 under "Notable individual findings"
+   below.
 
-**Agent behavior metrics (final clean run, 25-question core set, paid-tier model):**
+**Agent behavior metrics (final clean run, local testing, 25-question core set, paid-tier model):**
 
 | Metric | Result |
 |---|---|
@@ -387,7 +389,7 @@ for both were updated to explain the correction rather than silently changing th
 | Errors | 0/25 |
 | Rate-limit errors | 0/25 |
 
-**System metrics (local testing, paid-tier model):**
+**System metrics (same run, local testing, paid-tier model):**
 
 | Metric | Result |
 |---|---|
@@ -399,23 +401,21 @@ for both were updated to explain the correction rather than silently changing th
 deployment still defaults to the free `:free` tier, so deployed latency and cold-start behavior
 remain as documented in Section 6 / `deployed.md`, not the faster numbers above.)*
 
-**Answer quality (citation validity, groundedness, answer correctness):** verified systematically
-via `evaluation/verify_results.py` and `evaluation/answer_correctness_check.py` against an earlier
-21/25 baseline run, prior to the Q14/Q7/Q15 fixes above. These checks were not rerun against this
-final 24/25 run — the underlying answer-generation logic for citation formatting and factual
-grounding is unchanged by any of the three fixes (none touched `rag/answer.py` or the
-citation-extraction path), so there is no reason to expect these figures to differ, but they are
-reported here against their original run rather than assumed to carry over untested.
+**Answer quality (citation validity, groundedness, answer correctness):** all three checks below
+were rerun directly against this final 24/25 `results.json` (rather than carried over from the
+earlier 21/25 baseline run) to confirm rather than assume these figures still hold after the
+Q14/Q7/Q15 fixes.
 
 **Citation validity: 25/25 (100%)** — every citation's `(doc_title, section)` pair was checked
 programmatically against the actual corpus in `docs/`, confirming none were fabricated or
-mismatched. **Groundedness:** an automated heuristic (checks whether numeric claims in each answer
-appear in that question's retrieved text) initially flagged 5/25 results. Manual review of the
-flagged answers found all 5 to be false positives from the heuristic itself — markdown list
-numbering ("1.", "2.", "3.") misread as factual claims, one correctly-derived fact (an empty
-`pending_requests` list correctly reported as "0 days"), and one explicitly-labeled illustrative
-example ("e.g., increased sales by 10%") rather than a claim about the user. True groundedness
-rate after review: **25/25 clean**.
+mismatched, same as the earlier run. **Groundedness:** an automated heuristic (checks whether
+numeric claims in each answer appear in that question's retrieved text) flagged 3/25 results this
+run (Q11, Q12, Q19 — down from 5/25 on the earlier run, normal wording variance between runs, not a
+new concern). Manual review of each confirmed the same false-positive pattern already documented
+previously: Q11's flagged `0` is the empty `pending_requests` list correctly reported as "0";
+Q12 and Q19's flagged `1`/`2` are markdown numbered headers (`**1. Your PTO Balance**`,
+`### 2. Working from Another Country`) misread as factual claims by the heuristic, not real
+unsupported claims. True groundedness rate, directly verified against this run: **25/25 clean**.
 
 **Answer correctness (exact match against gold answers):** groundedness alone doesn't rule out
 *misattribution* — a number that is genuinely present in what was retrieved, but assigned to the
@@ -424,10 +424,11 @@ close that gap, `evaluation/answer_correctness_check.py` independently loads the
 directly from `mock_data/pto_balances.json` — bypassing the agent's own trace entirely — and
 checks the agent's stated answer against it for an exact match, across 2 different employee
 accounts (via distinct auth tokens) to confirm the check generalizes rather than being verified
-against only one record. **Result: 3/3 correct** — EMP001's remaining balance (16), EMP001's total
-and used days (25, 9), and EMP002's remaining balance (7, a distinct value for a distinct employee)
-all matched their real records exactly. Full evidence:
-`evaluation/answer_correctness_results.json`.
+against only one record. Rerun live against the current code: **3/3 correct** — EMP001's
+remaining balance (16), EMP001's total and used days (25, 9), and EMP002's remaining balance (7, a
+distinct value for a distinct employee) all matched their real records exactly. Full evidence:
+`evaluation/answer_correctness_results.json`. Every answer-quality figure in this section is now
+directly verified against the final 24/25 run, not assumed to carry over from an earlier one.
 
 **Ablation / comparison:** prompt-only vs. code-level guardrail for the hallucinated-employee-ID
 fix — 1/3 vs. 6/6 success (Section 5). This is the project's primary ablation, directly comparing
@@ -468,27 +469,23 @@ clean afterward, each showing a genuine `create_mock_hr_ticket` call with
 `status: "confirmation_required"` in the trace, distinct from the verified positive-path behavior
 in Q26/Section 5.1 (which confirms the tool correctly proceeds once genuine confirmation is given).
 
-**Q21 (out-of-scope — stock option vesting):** now passes cleanly against the corrected expected
-value (see methodology note above) — 3 progressively refined `search_policy_documents` queries,
-followed by an honest out-of-corpus refusal directing the user to HR. **Minor known limitation,
-unchanged:** the `/chat` citation-extraction logic surfaces every retrieved chunk, including ones
-the LLM explicitly said weren't relevant, rather than only chunks actually used in the final
-answer.
+**Q21 (out-of-scope — stock option vesting):** passes cleanly against the corrected expected
+value — the 3-refined-search-then-refuse pattern behind this is documented once, in Section 2's
+guardrails bullet, not repeated here. **Minor known limitation, unchanged:** citation extraction
+surfaces every retrieved chunk, including ones the LLM said weren't relevant, not just the ones
+actually used.
 
-**Q3 (ambiguous/straightforward — floating holidays):** the hallucinated-employee-ID finding
-described in Section 5 — found via this eval question, fixed, and reverified; passes cleanly in
-every run since, including this final one.
+**Q3 (floating holidays):** the hallucinated-employee-ID finding from Section 5 — found via this
+question, fixed, reverified; clean in every run since.
 
-**Q7 (multi-document — new-hire benefits/PTO): a partially-mitigated finding.** During evaluation,
-this question was found to intermittently return a completely empty final answer (no content, no
-tool calls, no exception raised) — a distinct silent-failure mode from the 504/429 pattern
-`invoke_with_retry()` already handled. Fixed by extending the retry wrapper to treat an empty final
-answer as a failure condition (Section 3, Resilience). Manual isolation testing (7 total attempts
-across two question phrasings) found this is specific to this question rather than general
-provider instability — a similarly-general single-tool-call question (expense reimbursement
-policy) succeeded cleanly on the first attempt every time, while this two-tool-call question failed
-on roughly 60–70% of individual attempts before eventually succeeding within the 3-attempt retry
-budget. The retry mechanism now surfaces failure clearly
+**Q7 (multi-document — new-hire benefits/PTO): a partially-mitigated finding.** This question
+surfaced the empty-final-answer failure mode fixed in Section 3 (Resilience) — see that section
+for the mechanism itself; here's what the isolation testing on this specific question found.
+Manual testing (7 total attempts across two question phrasings) showed this is specific to this
+question rather than general provider instability: a similarly-general single-tool-call question
+(expense reimbursement policy) succeeded cleanly on the first attempt every time, while this
+two-tool-call question failed on roughly 60–70% of individual attempts before eventually
+succeeding within the 3-attempt retry budget. The fix surfaces failure clearly
 (`"error": "Agent invocation failed: Model returned an empty final answer..."`) rather than
 silently returning blank content, and succeeds when any of the 3 attempts lands cleanly — but does
 not guarantee success, since a run where all 3 attempts hit the empty-completion case will still
@@ -496,10 +493,9 @@ fail visibly. The underlying cause — why this specific two-call context trigge
 more often than a single-call context — was not conclusively identified and is documented here as
 an open question rather than a resolved one.
 
-**Q26 (supplementary — confirmation-gate positive path):** verifies that `create_mock_hr_ticket`
-correctly *allows* creation once genuine confirmation is given, not just that it blocks without
-confirmation. Verified via both the live deployment and locally, with the resulting ticket
-confirmed present in `mock_data/tickets.json` afterward (Section 5.1).
+**Q26 (confirmation-gate positive path):** confirms `create_mock_hr_ticket` correctly *allows*
+creation once genuine confirmation is given, not just that it blocks without one — verified live
+and locally, with the resulting ticket confirmed in `mock_data/tickets.json` (Section 5.1).
 
 ---
 

@@ -1,4 +1,4 @@
-<svg viewBox="0 0 1000 440" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
   <defs>
     <marker id="arrow1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L0,6 L9,3 z" fill="#444" />
@@ -9,69 +9,89 @@
     Tool 1: check_pto_balance — structured data augmentation
   </text>
 
-  <!-- User prompt -->
-  <rect x="20" y="60" width="180" height="80" rx="8" fill="#fdf1f1" stroke="#c0392b" stroke-width="1.5"/>
-  <text x="110" y="82" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0392b">Original User Prompt</text>
-  <text x="110" y="102" text-anchor="middle" font-size="9" fill="#555">"I'm employee EMP001.</text>
-  <text x="110" y="115" text-anchor="middle" font-size="9" fill="#555">Can I take 3 days of</text>
-  <text x="110" y="128" text-anchor="middle" font-size="9" fill="#555">PTO next week?"</text>
+  <!-- AUTH ROW: HTTP Request -->
+  <rect x="20" y="45" width="170" height="75" rx="8" fill="#fef3e6" stroke="#b8631f" stroke-width="1.5"/>
+  <text x="105" y="65" text-anchor="middle" font-size="11" font-weight="bold" fill="#b8631f">HTTP Request</text>
+  <text x="105" y="83" text-anchor="middle" font-size="8" fill="#555">Authorization: Bearer</text>
+  <text x="105" y="95" text-anchor="middle" font-size="8" font-family="monospace" fill="#333">token-emp001-demo</text>
 
-  <line x1="200" y1="100" x2="250" y2="100" stroke="#444" stroke-width="1.5" marker-end="url(#arrow1)"/>
+  <line x1="190" y1="82" x2="228" y2="82" stroke="#444" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+  <!-- AUTH ROW: Auth Resolution -->
+  <rect x="230" y="45" width="260" height="75" rx="8" fill="#fef3e6" stroke="#b8631f" stroke-width="1.5"/>
+  <text x="360" y="65" text-anchor="middle" font-size="11" font-weight="bold" fill="#b8631f">Auth Resolution (app.py)</text>
+  <text x="360" y="82" text-anchor="middle" font-size="8" fill="#555">_resolve_authenticated_employee_id()</text>
+  <text x="360" y="94" text-anchor="middle" font-size="8" font-family="monospace" fill="#333">token → employee_id: EMP001</text>
+  <text x="360" y="106" text-anchor="middle" font-size="7.5" font-style="italic" fill="#666">injected into message context</text>
+
+  <!-- Auth Resolution -> User Prompt (down + left) -->
+  <polyline points="360,120 360,140 110,140 110,153" fill="none" stroke="#444" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+  <!-- User prompt (now shows the authenticated tag) -->
+  <rect x="20" y="155" width="180" height="100" rx="8" fill="#fdf1f1" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="110" y="175" text-anchor="middle" font-size="11" font-weight="bold" fill="#c0392b">Original User Prompt</text>
+  <text x="110" y="192" text-anchor="middle" font-size="7.5" font-style="italic" fill="#b8631f">[Authenticated as EMP001]</text>
+  <text x="110" y="207" text-anchor="middle" font-size="9" fill="#555">"I'm employee EMP001.</text>
+  <text x="110" y="220" text-anchor="middle" font-size="9" fill="#555">Can I take 3 days of</text>
+  <text x="110" y="233" text-anchor="middle" font-size="9" fill="#555">PTO next week?"</text>
+
+  <line x1="200" y1="205" x2="248" y2="205" stroke="#444" stroke-width="1.5" marker-end="url(#arrow1)"/>
 
   <!-- Agent -->
-  <rect x="250" y="70" width="110" height="60" rx="8" fill="#f3e8f8" stroke="#6c3d82" stroke-width="1.5"/>
-  <text x="305" y="93" text-anchor="middle" font-size="11" font-weight="bold" fill="#6c3d82">Agent</text>
-  <text x="305" y="110" text-anchor="middle" font-size="8" fill="#555">decides: needs</text>
-  <text x="305" y="121" text-anchor="middle" font-size="8" fill="#555">balance data</text>
+  <rect x="250" y="170" width="110" height="65" rx="8" fill="#f3e8f8" stroke="#6c3d82" stroke-width="1.5"/>
+  <text x="305" y="193" text-anchor="middle" font-size="11" font-weight="bold" fill="#6c3d82">Agent</text>
+  <text x="305" y="210" text-anchor="middle" font-size="8" fill="#555">decides: needs</text>
+  <text x="305" y="221" text-anchor="middle" font-size="8" fill="#555">balance data</text>
 
-  <line x1="360" y1="100" x2="410" y2="100" stroke="#444" stroke-width="1.5" marker-end="url(#arrow1)"/>
+  <line x1="360" y1="205" x2="410" y2="205" stroke="#444" stroke-width="1.5" marker-end="url(#arrow1)"/>
 
-  <!-- Tool call -->
-  <rect x="420" y="60" width="190" height="80" rx="8" fill="#eafaf1" stroke="#12876a" stroke-width="1.5"/>
-  <text x="515" y="80" text-anchor="middle" font-size="11" font-weight="bold" fill="#12876a">check_pto_balance()</text>
-  <text x="515" y="97" text-anchor="middle" font-size="8" fill="#555">mcp/hr_data_mcp_server.py</text>
-  <text x="515" y="111" text-anchor="middle" font-size="8" fill="#555">input: employee_id="EMP001"</text>
-  <text x="515" y="125" text-anchor="middle" font-size="8" fill="#555">reads mock_data/pto_balances.json</text>
+  <!-- Tool call (now includes the guard check) -->
+  <rect x="420" y="155" width="190" height="95" rx="8" fill="#eafaf1" stroke="#12876a" stroke-width="1.5"/>
+  <text x="515" y="175" text-anchor="middle" font-size="11" font-weight="bold" fill="#12876a">check_pto_balance()</text>
+  <text x="515" y="192" text-anchor="middle" font-size="8" fill="#555">mcp/hr_data_mcp_server.py</text>
+  <text x="515" y="206" text-anchor="middle" font-size="8" fill="#555">input: employee_id="EMP001"</text>
+  <text x="515" y="220" text-anchor="middle" font-size="8" font-weight="bold" fill="#b8631f">guard: EMP001 == auth'd ID ✓</text>
+  <text x="515" y="234" text-anchor="middle" font-size="8" fill="#555">reads mock_data/pto_balances.json</text>
 
   <!-- Tool call -> Tool Output -->
-  <line x1="515" y1="140" x2="515" y2="173" stroke="#444" stroke-width="1.8" marker-end="url(#arrow1)"/>
-  <text x="530" y="160" font-size="7.5" fill="#666" font-style="italic">tool result: JSON</text>
+  <line x1="515" y1="250" x2="515" y2="283" stroke="#444" stroke-width="1.8" marker-end="url(#arrow1)"/>
+  <text x="530" y="270" font-size="7.5" fill="#666" font-style="italic">tool result: JSON</text>
 
-  <!-- Tool output JSON: shifted right to open a real gap from Augmented Prompt -->
-  <rect x="400" y="175" width="250" height="90" rx="6" fill="#f4f4f4" stroke="#888" stroke-width="1.5"/>
-  <text x="525" y="192" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">Tool Output (structured JSON)</text>
-  <text x="415" y="208" font-size="8" font-family="monospace" fill="#333">{"employee_id": "EMP001",</text>
-  <text x="415" y="220" font-size="8" font-family="monospace" fill="#333"> "pto_days_total": 25,</text>
-  <text x="415" y="232" font-size="8" font-family="monospace" fill="#333"> "pto_days_used": 9,</text>
-  <text x="415" y="244" font-size="8" font-family="monospace" fill="#333"> "pto_days_remaining": 16,</text>
-  <text x="415" y="256" font-size="8" font-family="monospace" fill="#333"> "pending_requests": []}</text>
+  <!-- Tool output JSON -->
+  <rect x="400" y="285" width="250" height="90" rx="6" fill="#f4f4f4" stroke="#888" stroke-width="1.5"/>
+  <text x="525" y="302" text-anchor="middle" font-size="10" font-weight="bold" fill="#333">Tool Output (structured JSON)</text>
+  <text x="415" y="318" font-size="8" font-family="monospace" fill="#333">{"employee_id": "EMP001",</text>
+  <text x="415" y="330" font-size="8" font-family="monospace" fill="#333"> "pto_days_total": 25,</text>
+  <text x="415" y="342" font-size="8" font-family="monospace" fill="#333"> "pto_days_used": 9,</text>
+  <text x="415" y="354" font-size="8" font-family="monospace" fill="#333"> "pto_days_remaining": 16,</text>
+  <text x="415" y="366" font-size="8" font-family="monospace" fill="#333"> "pending_requests": []}</text>
 
-  <!-- Tool Output -> Augmented Prompt: real ~80px gap, clear arrow, label sits mid-gap -->
-  <line x1="400" y1="220" x2="322" y2="220" stroke="#444" stroke-width="1.8" marker-end="url(#arrow1)"/>
-  <text x="361" y="212" text-anchor="middle" font-size="7.5" fill="#666" font-style="italic">injected into</text>
+  <!-- Tool Output -> Augmented Prompt -->
+  <line x1="400" y1="330" x2="322" y2="330" stroke="#444" stroke-width="1.8" marker-end="url(#arrow1)"/>
+  <text x="361" y="322" text-anchor="middle" font-size="7.5" fill="#666" font-style="italic">injected into</text>
 
-  <!-- Augmented prompt: narrowed to make room for the gap -->
-  <rect x="20" y="175" width="300" height="140" rx="8" fill="#fdf6e3" stroke="#a8801f" stroke-width="1.5"/>
-  <text x="170" y="193" text-anchor="middle" font-size="11" font-weight="bold" fill="#a8801f">Augmented Prompt (sent to LLM)</text>
-  <text x="30" y="210" font-size="8" fill="#555">Original question:</text>
-  <text x="30" y="222" font-size="8" font-style="italic" fill="#333">"I'm employee EMP001. Can I take 3</text>
-  <text x="30" y="233" font-size="8" font-style="italic" fill="#333">days of PTO next week?"</text>
-  <text x="30" y="250" font-size="8" fill="#555">+ Tool result injected as context:</text>
-  <text x="30" y="262" font-size="8" font-family="monospace" fill="#333">employee_id: EMP001</text>
-  <text x="30" y="273" font-size="8" font-family="monospace" fill="#333">pto_days_remaining: 16</text>
-  <text x="30" y="284" font-size="8" font-family="monospace" fill="#333">pto_days_total: 25, used: 9</text>
-  <text x="30" y="301" font-size="8" font-style="italic" fill="#666">→ LLM now has real balance data,</text>
-  <text x="30" y="311" font-size="8" font-style="italic" fill="#666">  not a guess, to reason over.</text>
+  <!-- Augmented prompt -->
+  <rect x="20" y="285" width="300" height="150" rx="8" fill="#fdf6e3" stroke="#a8801f" stroke-width="1.5"/>
+  <text x="170" y="303" text-anchor="middle" font-size="11" font-weight="bold" fill="#a8801f">Augmented Prompt (sent to LLM)</text>
+  <text x="30" y="320" font-size="8" fill="#555">Original question:</text>
+  <text x="30" y="332" font-size="8" font-style="italic" fill="#333">"I'm employee EMP001. Can I take 3</text>
+  <text x="30" y="343" font-size="8" font-style="italic" fill="#333">days of PTO next week?"</text>
+  <text x="30" y="360" font-size="8" fill="#555">+ Tool result injected as context:</text>
+  <text x="30" y="372" font-size="8" font-family="monospace" fill="#333">employee_id: EMP001</text>
+  <text x="30" y="383" font-size="8" font-family="monospace" fill="#333">pto_days_remaining: 16</text>
+  <text x="30" y="394" font-size="8" font-family="monospace" fill="#333">pto_days_total: 25, used: 9</text>
+  <text x="30" y="411" font-size="8" font-style="italic" fill="#666">→ LLM now has real balance data,</text>
+  <text x="30" y="421" font-size="8" font-style="italic" fill="#666">  not a guess, to reason over.</text>
 
   <!-- LLM -->
-  <rect x="440" y="345" width="150" height="60" rx="8" fill="#e8f0f9" stroke="#1a4d73" stroke-width="1.5"/>
-  <text x="515" y="368" text-anchor="middle" font-size="12" font-weight="bold" fill="#1a4d73">LLM</text>
-  <text x="515" y="385" text-anchor="middle" font-size="8" fill="#555">Gemma via OpenRouter</text>
-  <text x="515" y="398" text-anchor="middle" font-size="8" fill="#555">(get_model(), rag/answer.py)</text>
+  <rect x="440" y="460" width="150" height="60" rx="8" fill="#e8f0f9" stroke="#1a4d73" stroke-width="1.5"/>
+  <text x="515" y="483" text-anchor="middle" font-size="12" font-weight="bold" fill="#1a4d73">LLM</text>
+  <text x="515" y="500" text-anchor="middle" font-size="8" fill="#555">Gemma via OpenRouter</text>
+  <text x="515" y="513" text-anchor="middle" font-size="8" fill="#555">(get_model(), rag/answer.py)</text>
 
   <!-- Augmented Prompt -> LLM -->
-  <polyline points="322,300 515,300 515,343" fill="none" stroke="#444" stroke-width="1.8" marker-end="url(#arrow1)"/>
-  <text x="443" y="325" text-anchor="middle" font-size="7.5" fill="#666" font-style="italic">sent as full context</text>
+  <polyline points="322,410 515,410 515,458" fill="none" stroke="#444" stroke-width="1.8" marker-end="url(#arrow1)"/>
+  <text x="443" y="435" text-anchor="middle" font-size="7.5" fill="#666" font-style="italic">sent as full context</text>
 
-  <text x="20" y="425" font-size="9" fill="#888">Key point: the LLM never calls the tool itself — the agent orchestrator calls it, then serializes the result into the prompt context before the LLM ever sees the question.</text>
+  <text x="20" y="545" font-size="9" fill="#888">Key point: authentication happens BEFORE the agent sees the question — the guard then re-checks the tool's target employee_id against the authenticated identity, not just what the message states.</text>
 </svg>

@@ -22,12 +22,21 @@
 
   <line x1="430" y1="175" x2="430" y2="218" stroke="#444" stroke-width="1.8" marker-end="url(#arrowA)"/>
 
+  <!-- Auth Resolution (side annotation, added after Section 5.3 authentication work) -->
+  <rect x="610" y="115" width="260" height="70" rx="8" fill="#fef3e6" stroke="#b8631f" stroke-width="1.5"/>
+  <text x="740" y="134" text-anchor="middle" font-size="11" font-weight="bold" fill="#b8631f">Auth Resolution</text>
+  <text x="740" y="150" text-anchor="middle" font-size="8.5" fill="#555">Authorization: Bearer &lt;token&gt;</text>
+  <text x="740" y="163" text-anchor="middle" font-size="8.5" fill="#333">→ authenticated employee_id</text>
+  <text x="740" y="177" text-anchor="middle" font-size="7.5" font-style="italic" fill="#666">injected into message (Section 5.3)</text>
+
+  <line x1="570" y1="148" x2="609" y2="150" stroke="#888" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowDashed)"/>
+
   <!-- Agent Orchestrator -->
   <rect x="240" y="220" width="380" height="105" rx="8" fill="#f3e8f8" stroke="#6c3d82" stroke-width="1.5"/>
   <text x="430" y="240" text-anchor="middle" font-size="12" font-weight="bold" fill="#6c3d82">Agent Orchestrator (agent.py)</text>
   <text x="255" y="258" font-size="9" fill="#555">LangGraph ReAct agent, single loop</text>
   <text x="255" y="273" font-size="9" fill="#555">- decides: RAG alone, or tool call(s) needed</text>
-  <text x="255" y="288" font-size="9" fill="#555">- employee_id guard wraps sensitive tools</text>
+  <text x="255" y="288" font-size="9" fill="#555">- guard verifies authenticated employee_id</text>
   <text x="255" y="303" font-size="9" fill="#555">- operational trace logging</text>
 
   <line x1="340" y1="325" x2="230" y2="378" stroke="#444" stroke-width="1.8" marker-end="url(#arrowA)"/>

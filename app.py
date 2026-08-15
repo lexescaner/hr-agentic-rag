@@ -71,7 +71,11 @@ def _resolve_authenticated_employee_id():
     if not auth_header.startswith("Bearer "):
         return None
     token = auth_header[len("Bearer "):].strip()
-    return _AUTH_TOKENS.get(token)
+    # Case-insensitive match: these are demo tokens for a coursework project, not
+    # real security credentials, so there's no reason to make casing a trap for
+    # anyone testing the live demo (e.g. typing "token-EMP002-demo" instead of the
+    # exact "token-emp002-demo" key in mock_data/auth_tokens.json).
+    return _AUTH_TOKENS.get(token.lower())
 
 
 def _filter_prompt_disclosure(answer: str) -> str:

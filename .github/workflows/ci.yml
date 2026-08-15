@@ -37,16 +37,17 @@ jobs:
 
   # Deployment is a separate job so it only runs if build-and-test succeeds,
   # satisfying the rubric's "deployment must only occur if tests pass."
-  # Render/Railway typically auto-deploy on push to main via their own
-  # webhook once connected — this job is a placeholder that documents that
-  # intent explicitly, and can be replaced with an actual deploy step
-  # (e.g. a Render deploy hook curl call) once the service is connected.
+  # Render auto-deploys on push to main via a deploy hook webhook — this job
+  # explicitly triggers that hook only after tests pass, rather than relying
+  # solely on Render's own push-triggered auto-deploy (which is not gated on
+  # this repo's own CI at all). The hook URL is a secret (RENDER_DEPLOY_HOOK)
+  # so it never appears in the repo or workflow logs.
   deploy:
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Deployment gate passed
+      - name: Trigger Render deploy
         run: |
-          echo "Tests passed on main — deployment proceeds."
-          echo "TODO: replace with actual Render/Railway deploy hook once connected."
+          curl -f -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo "Deploy hook triggered — tests passed on main."

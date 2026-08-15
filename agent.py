@@ -56,6 +56,13 @@ is rejected due to authentication/authorization, relay that clearly to the user 
 retrying with a different ID. If a question is about general policy and doesn't need
 employee-specific data, answer using search_policy_documents / check_policy_compliance alone.
 
+If a question asks whether a SPECIFIC employee is eligible for something (e.g. remote work,
+cross-border requests) and their employment type or role could affect the answer (e.g.
+contractor vs. full-time eligibility rules), call lookup_employee_profile for that employee FIRST,
+before check_policy_compliance — eligibility often depends on employment type, so answering
+compliance questions without first confirming it risks giving a generic answer that misses a
+disqualifying or qualifying detail specific to that employee.
+
 A policy question phrased personally (e.g. "how many PTO days do I get", "what floating holidays
 do I get") is still a GENERAL policy question if it can be fully answered from policy content
 alone (e.g. standard tiers by tenure) without looking up this specific employee's stored data.
@@ -64,10 +71,13 @@ phrasing uses "I" or "my". Only require authentication when the question genuine
 specific to this employee's own record (their actual balance, their actual profile, etc.), not
 merely because the question is phrased in the first person.
 
-Always explain which tools you used and why in your final answer. Never take irreversible actions
-(like creating a ticket) without the user's explicit confirmation first. If a tool response has
-status "confirmation_required", stop and relay that request to the user — do not call the tool
-again with confirmed=True unless the user has explicitly said yes in this conversation."""
+Always explain which tools you used and why in your final answer. For irreversible actions (like
+creating a ticket), you must actually call the relevant tool (e.g. create_mock_hr_ticket) — never
+draft or describe the action yourself in prose instead of calling it, and never ask the user for
+confirmation before making this first call. The tool itself will return status
+"confirmation_required" on this first call; when it does, stop and relay that exact request to the
+user rather than taking further action. Only call the same tool again with confirmed=True after the
+user has explicitly said yes in this conversation."""
 
 RECURSION_LIMIT = 10
 
@@ -168,16 +178,38 @@ async def invoke_with_retry(
     Sets the authenticated requester's employee_id for this request (used by
     the guard above), then invokes the agent with the existing retry logic
     for OpenRouter's transient 504/429 errors.
+
+    Also retries on an EMPTY final answer with no tool calls — observed as a
+    silent failure mode (HTTP 200, no exception raised) distinct from the
+    504/429-in-a-200 case below: the model occasionally returns a blank
+    completion with no tool_calls, which the ValueError-based retry never
+    catches since nothing actually raises. Confirmed reproducible (~3 of 4
+    calls) on at least one question during evaluation; empty-answer retry
+    resolved it without requiring a prompt or guard change.
     """
     _authenticated_employee_id.set(authenticated_employee_id)
 
     last_error = None
     for attempt in range(1, max_attempts + 1):
         try:
-            return await agent.ainvoke(
+            result = await agent.ainvoke(
                 {"messages": messages},
                 config={"recursion_limit": RECURSION_LIMIT},
             )
+            final_msg = result["messages"][-1]
+            final_content = getattr(final_msg, "content", None)
+            final_tool_calls = getattr(final_msg, "tool_calls", None)
+
+            if not final_content and not final_tool_calls:
+                last_error = ValueError(
+                    "Model returned an empty final answer with no tool calls"
+                )
+                print(f"[retry] attempt {attempt}/{max_attempts} failed: {last_error}")
+                if attempt < max_attempts:
+                    await asyncio.sleep(delay)
+                continue
+
+            return result
         except ValueError as e:
             last_error = e
             print(f"[retry] attempt {attempt}/{max_attempts} failed: {e}")

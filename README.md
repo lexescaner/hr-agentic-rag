@@ -1,5 +1,7 @@
 # HR Agentic RAG Assistant
 
+[![CI/CD](https://github.com/lexescaner/hr-agentic-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/lexescaner/hr-agentic-rag/actions/workflows/ci.yml)
+
 Agentic AI system for HR policy Q&A and multi-step HR workflows, built for the MSAIE
 "AI Engineering Techniques and Architectures" project.
 
@@ -36,6 +38,11 @@ Full architecture diagram and design rationale: see `design-and-evaluation.md`.
 5. Run locally: `python app.py` (or `gunicorn app:app --bind 0.0.0.0:5000` to test under the
    same server used in production)
 6. Visit `http://localhost:5000/` for the chat UI, or `POST /chat` with `{"question": "..."}`
+
+**Determinism:** no explicit random seed is set, because no step in the pipeline is stochastic —
+chunking is heading-based (deterministic by construction, not sampled), the evaluation set is a
+fixed 25-question list (not randomly sampled), and the LLM is called at `temperature=0.2` for
+consistent, low-variance answers (`rag/answer.py`). A seed would have nothing to fix.
 
 ## Testing
 

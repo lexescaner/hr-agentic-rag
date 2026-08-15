@@ -118,9 +118,23 @@ hidden chain-of-thought.
 on every invocation — a project-authored ceiling rather than relying on the framework's
 undocumented default.
 
-**Resilience:** `invoke_with_retry()` retries up to 3 times (3s delay) on `ValueError`, since
+**Resilience:** `invoke_with_retry()` retries up to 3 times (3s delay, set via the `max_attempts`/
+`delay` parameter defaults at the top of the function in `agent.py`) on `ValueError`, since
 OpenRouter's free-tier models occasionally return a 504/429 packaged inside a 200 OK response body
-(an application-level error the underlying SDK's built-in retry logic doesn't catch).
+(an application-level error the underlying SDK's built-in retry logic doesn't catch). **Design
+rationale for 3 attempts / 3s delay:** this is a bounded, deliberately un-tuned default chosen when
+the 504-in-a-200 pattern first appeared — enough tries to ride out typical free-tier transient
+flakiness without letting a failing request hang indefinitely, and a short pause to give the
+shared free-tier pool a moment to recover before retrying. It was not derived from measuring actual
+retry-success rates; a rigorous version of this would log how many failures resolve on attempt 2 vs.
+3 and tune the ceiling against that data, which this project did not do.
+
+The same function was later extended to also retry on an **empty final answer with no tool calls**
+— a distinct silent-failure mode found during evaluation (Section 7): the model occasionally
+returns a blank completion (HTTP 200, no exception raised), which the original `ValueError`-based
+retry never caught since nothing actually raises in that case. Confirmed reproducible (~3 of 4
+calls on one question during manual testing) before the fix; retrying on this condition using the
+same existing attempt/delay budget resolved it without requiring a prompt or guard change.
 
 **Graceful failure handling:** unknown employee IDs return a clean tool-level error
 (`"No employee found with id ..."`) rather than crashing, confirmed via direct testing. Ambiguous
@@ -346,11 +360,30 @@ Q19's use of `search_policy_documents` to answer an ambiguous question with a co
 threshold rather than asking for clarification when policy already answers it). `gold_answer_notes`
 for both were updated to explain the correction rather than silently changing the expected value.
 
+4. **Two further findings, both closed:** Q14 (Section 5.1/5.2's confirmation-gate question) was
+   found to skip the actual `create_mock_hr_ticket` tool call entirely, imitating a confirmation
+   request in prose instead — traced to `AGENT_SYSTEM_PROMPT` over-applying its "don't call again
+   with confirmed=True" instruction to the *first* call as well; fixed by clarifying the prompt,
+   reverified 3/3 clean (Section 7 findings below). Separately, Q7 was found to intermittently
+   return a completely empty final answer with no exception raised — a silent failure mode the
+   existing exception-based retry never caught; fixed by extending `invoke_with_retry()` to treat
+   an empty final answer as a retryable failure (Section 3, Resilience).
+5. **A genuine content gap, closed:** Q15 (the Remote Work Eligibility required workflow) was found
+   to sometimes skip `lookup_employee_profile` entirely, producing a generic eligibility answer
+   that never referenced EMP003's contractor status — contradicting this document's own Section 3
+   claim that this workflow was verified to flag that status. Fixed by adding an explicit
+   instruction to `AGENT_SYSTEM_PROMPT`: for any question asking whether a specific employee is
+   eligible for something where employment type could affect the answer, call
+   `lookup_employee_profile` before `check_policy_compliance`. Reverified 3/3 clean, each run
+   correctly citing EMP003's real contractor status from the mock record; a follow-up spot-check on
+   Q6 (no employee named) confirmed the change did not cause over-calling `lookup_employee_profile`
+   where it isn't needed.
+
 **Agent behavior metrics (final clean run, 25-question core set, paid-tier model):**
 
 | Metric | Result |
 |---|---|
-| Tool selection match | 22/25 (88%) |
+| Tool selection match | 24/25 (96%) |
 | Errors | 0/25 |
 | Rate-limit errors | 0/25 |
 
@@ -358,8 +391,8 @@ for both were updated to explain the correction rather than silently changing th
 
 | Metric | Result |
 |---|---|
-| Latency p50 | 3.7s |
-| Latency p95 | 6.9s |
+| Latency p50 | 3.8s |
+| Latency p95 | 13.5s |
 | Cold-start delay | 50s+ on the live Render deployment (free `:free` tier; documented separately in `deployed.md`) |
 
 *(Note: this run used the paid model tier locally, purely for evaluation reliability — the live
@@ -367,11 +400,12 @@ deployment still defaults to the free `:free` tier, so deployed latency and cold
 remain as documented in Section 6 / `deployed.md`, not the faster numbers above.)*
 
 **Answer quality (citation validity, groundedness, answer correctness):** verified systematically
-via `evaluation/verify_results.py` and `evaluation/answer_correctness_check.py` against the earlier
-21/25 baseline run. These checks were not rerun against this final 22/25 run — the underlying
-answer-generation logic is unchanged between runs, so there is no reason to expect these figures to
-differ, but they are reported here against their original run rather than assumed to carry over
-untested.
+via `evaluation/verify_results.py` and `evaluation/answer_correctness_check.py` against an earlier
+21/25 baseline run, prior to the Q14/Q7/Q15 fixes above. These checks were not rerun against this
+final 24/25 run — the underlying answer-generation logic for citation formatting and factual
+grounding is unchanged by any of the three fixes (none touched `rag/answer.py` or the
+citation-extraction path), so there is no reason to expect these figures to differ, but they are
+reported here against their original run rather than assumed to carry over untested.
 
 **Citation validity: 25/25 (100%)** — every citation's `(doc_title, section)` pair was checked
 programmatically against the actual corpus in `docs/`, confirming none were fabricated or
@@ -401,25 +435,38 @@ two implementations of the same guardrail intent.
 
 ### Notable individual findings
 
-**Q6 (multi-document — Tier 3 remote work) and Q15 (tool-requiring — Remote Work Eligibility):**
-both produce complete, correctly-cited answers combining the right policy content (Q6: Data
-Security Policy Tier 3 rules + Remote Work Policy Cross-Border Request process; Q15: employee
-status + the same combined policy content), but each calls only one of its two "expected" tools
-rather than both. The RAG layer's single `search_policy_documents`/`check_policy_compliance` call
-is retrieving the necessary content in one pass rather than needing a second tool call — correct
-output, exact-tool-count mismatch rather than a real quality gap.
+**Q6 (multi-document — Tier 3 remote work): a benign tool-count mismatch, left as-is.** The answer
+is complete and correctly cited, combining Data Security Policy Tier 3 rules with the Remote Work
+Policy's Cross-Border Request process in a single `search_policy_documents` call. No employee is
+named in the question, so there is no personalization to be missing — the RAG layer's single call
+already retrieves everything the answer needs. Fixing this would mean optimizing for the eval's
+tool-count expectation rather than any real gap a user would notice, so `expected_tools` was left
+unchanged and this remains a documented, understood mismatch rather than something acted on.
 
-**Q14 (tool-requiring — HR ticket creation): a real, reproduced limitation.** Across 3 separate
-authenticated runs, the agent has now consistently drafted a ticket preview and asked for
+**Q15 (tool-requiring — Remote Work Eligibility): found, fixed, and reverified.** Unlike Q6, this
+was a genuine content gap, not a cosmetic one: the agent was sometimes skipping
+`lookup_employee_profile` entirely and answering generically, without ever confirming or
+referencing EMP003's actual contractor status — directly contradicting this document's own Section
+3 claim that this required workflow was verified to flag that status. Fixed by adding an explicit
+instruction to `AGENT_SYSTEM_PROMPT` requiring `lookup_employee_profile` before
+`check_policy_compliance` whenever a specific employee's eligibility could depend on employment
+type. Reverified 3/3 clean, each run correctly citing EMP003's real contractor status from the mock
+record (`employment_type: "contractor"`), with a follow-up spot-check on Q6 confirming the change
+did not cause over-calling `lookup_employee_profile` on questions with no employee named.
+
+**Q14 (tool-requiring — HR ticket creation): found, fixed, and reverified.** Across the first 3
+authenticated evaluation runs, the agent consistently drafted a ticket preview and asked for
 confirmation *in prose*, without ever calling `create_mock_hr_ticket` (`actual_tools: []` all 3
-times). This means the code-level confirmation gate documented in Section 5.1 as a hard guardrail
-is never exercised on this specific path — the model is imitating the same confirmation-request
-pattern without the tool (and therefore the guard) running at all. The user remains protected in
-practice (no ticket is created without a second, explicit confirming message), but the "hard,
-code-enforced" guarantee in Section 5.1 does not hold for this flow as currently implemented —
-documented here as a known limitation rather than a resolved case, distinct from the verified
-positive-path behavior in Q26/Section 5.1 (which did trigger the real tool call when confirmation
-was front-loaded in a single message).
+times) — meaning the code-level confirmation gate documented in Section 5.1 as a hard guardrail was
+never exercised on this path, since the model was imitating the confirmation-request pattern
+without the tool (and therefore the guard) running at all. Root cause: `AGENT_SYSTEM_PROMPT`'s
+instruction not to call the tool "again with confirmed=True unless the user has explicitly said
+yes" was being over-applied to skip the *first* call entirely, rather than only the second,
+already-confirmed one. Fixed by clarifying the prompt to state explicitly that the first call must
+always happen and must never be replaced with a prose description of the action. Reverified 3/3
+clean afterward, each showing a genuine `create_mock_hr_ticket` call with
+`status: "confirmation_required"` in the trace, distinct from the verified positive-path behavior
+in Q26/Section 5.1 (which confirms the tool correctly proceeds once genuine confirmation is given).
 
 **Q21 (out-of-scope — stock option vesting):** now passes cleanly against the corrected expected
 value (see methodology note above) — 3 progressively refined `search_policy_documents` queries,
@@ -431,6 +478,23 @@ answer.
 **Q3 (ambiguous/straightforward — floating holidays):** the hallucinated-employee-ID finding
 described in Section 5 — found via this eval question, fixed, and reverified; passes cleanly in
 every run since, including this final one.
+
+**Q7 (multi-document — new-hire benefits/PTO): a partially-mitigated finding.** During evaluation,
+this question was found to intermittently return a completely empty final answer (no content, no
+tool calls, no exception raised) — a distinct silent-failure mode from the 504/429 pattern
+`invoke_with_retry()` already handled. Fixed by extending the retry wrapper to treat an empty final
+answer as a failure condition (Section 3, Resilience). Manual isolation testing (7 total attempts
+across two question phrasings) found this is specific to this question rather than general
+provider instability — a similarly-general single-tool-call question (expense reimbursement
+policy) succeeded cleanly on the first attempt every time, while this two-tool-call question failed
+on roughly 60–70% of individual attempts before eventually succeeding within the 3-attempt retry
+budget. The retry mechanism now surfaces failure clearly
+(`"error": "Agent invocation failed: Model returned an empty final answer..."`) rather than
+silently returning blank content, and succeeds when any of the 3 attempts lands cleanly — but does
+not guarantee success, since a run where all 3 attempts hit the empty-completion case will still
+fail visibly. The underlying cause — why this specific two-call context triggers empty completions
+more often than a single-call context — was not conclusively identified and is documented here as
+an open question rather than a resolved one.
 
 **Q26 (supplementary — confirmation-gate positive path):** verifies that `create_mock_hr_ticket`
 correctly *allows* creation once genuine confirmation is given, not just that it blocks without

@@ -16,7 +16,7 @@
         </mxCell>
 
         <!-- Agent Orchestrator -->
-        <mxCell id="agent" value="Agent Orchestrator (agent.py)&#10;LangGraph ReAct agent, single loop&#10;- LLM decides: RAG alone, or tool call(s) needed&#10;- guard verifies authenticated employee_id&#10;- operational trace logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8f8;strokeColor=#6c3d82;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
+        <mxCell id="agent" value="Agent Orchestrator (agent.py)&#10;LangGraph ReAct agent, single loop&#10;- calls LLM, then executes any requested tool call(s)&#10;- guard verifies authenticated employee_id&#10;- operational trace logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8f8;strokeColor=#6c3d82;fontStyle=1;fontSize=12;align=left;spacingLeft=10;" vertex="1" parent="1">
           <mxGeometry x="240" y="220" width="380" height="110" as="geometry" />
         </mxCell>
 
@@ -46,8 +46,8 @@
         </mxCell>
 
         <!-- LLM -->
-        <mxCell id="llm" value="LLM (rag/answer.py: get_model())&#10;google/gemma-4-26b-a4b-it:free via OpenRouter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f0f9;strokeColor=#1a4d73;fontStyle=1;fontSize=13;" vertex="1" parent="1">
-          <mxGeometry x="220" y="680" width="420" height="60" as="geometry" />
+        <mxCell id="llm" value="LLM (rag/answer.py: get_model())&#10;google/gemma-4-26b-a4b-it:free via OpenRouter&#10;decides: RAG alone, or tool call(s) needed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f0f9;strokeColor=#1a4d73;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="220" y="680" width="420" height="72" as="geometry" />
         </mxCell>
 
         <!-- Edges -->

@@ -43,17 +43,21 @@ during the build:
   section of this same design doc that claimed the workflow was verified. Fixed with an explicit
   prompt instruction to check employment type before compliance questions; reverified 3/3 clean.
 
-**Security hardening.** An adversarial test suite (8 attacks across 3 categories: direct
-jailbreak, authorization bypass, system-prompt disclosure) found real gaps at baseline — 4 of 8
-attacks succeeded, including a genuine authorization bypass where the original guard checked only
-whether an employee ID was *mentioned* in a message, not whether the requester actually *was* that
-employee (3/3 bypass attempts succeeded). Claude rewrote the guard to check a bearer-token-resolved
-authenticated identity instead, added an output filter for the system-prompt-disclosure gap, and
-added rate limiting (previously untested). Re-running the same suite after these fixes: 0 of 8
-attacks succeeded. A secondary, more subtle bug was found *during* this fix — without knowing its
-own authenticated ID, the agent would guess a placeholder and only self-correct by having the
-guess rejected and reading the real ID out of the error message; this "fragile accidental
-side-channel" was closed by injecting the real authenticated ID directly into the message context.
+**Security hardening.** This gap was first surfaced by a structured review of the codebase against
+SWEBOK v4's 18 knowledge areas (full citation in `design-and-evaluation.md`'s References) —
+Software Security was the one area flagged as needing action, which motivated building and running
+the adversarial suite described below. An adversarial test suite (8 attacks across 3 categories:
+direct jailbreak, authorization bypass, system-prompt disclosure) found real gaps at baseline — 4
+of 8 attacks succeeded, including a genuine authorization bypass where the original guard checked
+only whether an employee ID was *mentioned* in a message, not whether the requester actually *was*
+that employee (3/3 bypass attempts succeeded). Claude rewrote the guard to check a
+bearer-token-resolved authenticated identity instead, added an output filter for the
+system-prompt-disclosure gap, and added rate limiting (previously untested). Re-running the same
+suite after these fixes: 0 of 8 attacks succeeded. A secondary, more subtle bug was found *during*
+this fix — without knowing its own authenticated ID, the agent would guess a placeholder and only
+self-correct by having the guess rejected and reading the real ID out of the error message; this
+"fragile accidental side-channel" was closed by injecting the real authenticated ID directly into
+the message context.
 
 **Evaluation design, analysis, and re-verification.** Claude designed the 25-question evaluation
 set across all 5 required categories, built the evaluation runner and a systematic verification
